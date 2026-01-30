@@ -100,6 +100,10 @@ internal sealed partial class AllTasksPage : DynamicListPage
         var openCommand = new OpenInObsidianCommand(task, _apiClient);
         var archiveCommand = new ArchiveTaskCommand(task, _apiClient, RefreshTasks);
         var copyLinkCommand = new CopyTaskLinkCommand(task, _apiClient);
+        var deleteCommand = new DeleteTaskCommand(task, _apiClient, RefreshTasks);
+        var startTimeCommand = new StartTimeTrackingCommand(task, _apiClient, RefreshTasks);
+        var stopTimeCommand = new StopTimeTrackingCommand(task, _apiClient, RefreshTasks);
+        var startPomodoroCommand = new StartPomodoroCommand(_apiClient, RefreshTasks, task);
 
         return new ListItem(toggleCommand)
         {
@@ -107,8 +111,13 @@ internal sealed partial class AllTasksPage : DynamicListPage
             Subtitle = FormatSubtitle(task),
             Icon = GetIcon(task),
             MoreCommands = [
+                new CommandContextItem(new EditTaskPage(task, _apiClient)),
                 new CommandContextItem(openCommand),
+                new CommandContextItem(startTimeCommand),
+                new CommandContextItem(stopTimeCommand),
+                new CommandContextItem(startPomodoroCommand),
                 new CommandContextItem(archiveCommand),
+                new CommandContextItem(deleteCommand),
                 new CommandContextItem(copyLinkCommand)
             ]
         };

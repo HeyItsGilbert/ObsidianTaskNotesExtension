@@ -87,3 +87,84 @@ public class TaskItem
     [JsonIgnore]
     public bool CompletedToday => Completed && Modified.HasValue && Modified.Value.Date == DateTime.Today;
 }
+
+public class SingleTaskResponse
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("data")]
+    public TaskItem? Data { get; set; }
+}
+
+public class CreateTaskRequest
+{
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [JsonPropertyName("priority")]
+    public string? Priority { get; set; }
+
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    [JsonPropertyName("due")]
+    public string? Due { get; set; }
+
+    [JsonPropertyName("scheduled")]
+    public string? Scheduled { get; set; }
+
+    [JsonPropertyName("tags")]
+    public string[]? Tags { get; set; }
+
+    [JsonPropertyName("projects")]
+    public string[]? Projects { get; set; }
+
+    [JsonPropertyName("contexts")]
+    public string[]? Contexts { get; set; }
+
+    [JsonPropertyName("details")]
+    public string? Details { get; set; }
+
+    [JsonPropertyName("timeEstimate")]
+    public string? TimeEstimate { get; set; }
+}
+
+public class UpdateTaskRequest
+{
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    [JsonPropertyName("priority")]
+    public string? Priority { get; set; }
+
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    [JsonPropertyName("due")]
+    public string? Due { get; set; }
+
+    [JsonPropertyName("scheduled")]
+    public string? Scheduled { get; set; }
+
+    [JsonPropertyName("tags")]
+    public string[]? Tags { get; set; }
+
+    [JsonPropertyName("projects")]
+    public string[]? Projects { get; set; }
+
+    [JsonPropertyName("contexts")]
+    public string[]? Contexts { get; set; }
+
+    [JsonPropertyName("details")]
+    public string? Details { get; set; }
+
+    [JsonPropertyName("timeEstimate")]
+    public string? TimeEstimate { get; set; }
+}
+
+public class GenericApiResponse
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+}

@@ -27,6 +27,10 @@ public partial class ObsidianTaskNotesExtensionCommandsProvider : CommandProvide
         // Create pages
         var tasksPage = new ObsidianTaskNotesExtensionPage(_apiClient);
         var allTasksPage = new AllTasksPage(_apiClient);
+        var createTaskPage = new CreateTaskPage(_apiClient);
+        var statsPage = new StatsPage(_apiClient);
+        var pomodoroPage = new PomodoroPage(_apiClient);
+        var timeTrackingPage = new TimeTrackingPage(_apiClient);
         var settingsPage = new SettingsPage(_settingsManager, _apiClient);
 
         _commands =
@@ -40,6 +44,26 @@ public partial class ObsidianTaskNotesExtensionCommandsProvider : CommandProvide
             {
                 Title = "Obsidian All Tasks",
                 Subtitle = "View all tasks including completed and archived"
+            },
+            new CommandItem(createTaskPage)
+            {
+                Title = "Obsidian Create Task",
+                Subtitle = "Create a new task"
+            },
+            new CommandItem(statsPage)
+            {
+                Title = "Obsidian Task Stats",
+                Subtitle = "View task and time statistics"
+            },
+            new CommandItem(pomodoroPage)
+            {
+                Title = "Obsidian Pomodoro",
+                Subtitle = "Pomodoro timer and focus sessions"
+            },
+            new CommandItem(timeTrackingPage)
+            {
+                Title = "Obsidian Time Tracking",
+                Subtitle = "View active timers and time summaries"
             },
             new CommandItem(settingsPage)
             {
