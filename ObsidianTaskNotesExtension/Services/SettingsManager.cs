@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 
@@ -27,7 +28,9 @@ public class SettingsManager
 
     public SettingsManager()
     {
+        Debug.WriteLine($"[SettingsManager] Loading settings from: {SettingsFilePath}");
         _settings = LoadSettings();
+        Debug.WriteLine($"[SettingsManager] Loaded - ApiBaseUrl: '{_settings.ApiBaseUrl}', AuthToken: '{(string.IsNullOrEmpty(_settings.AuthToken) ? "(empty)" : "(set)")}', VaultName: '{_settings.VaultName}'");
     }
 
     public string ApiBaseUrl => _settings.ApiBaseUrl;
@@ -85,13 +88,16 @@ public class SettingsManager
             if (File.Exists(SettingsFilePath))
             {
                 var json = File.ReadAllText(SettingsFilePath);
+                Debug.WriteLine($"[SettingsManager] Settings file contents: {json}");
                 var settings = JsonSerializer.Deserialize<ExtensionSettings>(json);
                 return settings ?? new ExtensionSettings();
             }
+
+            Debug.WriteLine("[SettingsManager] No settings file found, using defaults");
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // If we can't load settings, return defaults
+            Debug.WriteLine($"[SettingsManager] Error loading settings: {ex.Message}");
         }
 
         return new ExtensionSettings();

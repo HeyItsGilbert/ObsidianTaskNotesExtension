@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -13,7 +14,7 @@ using ObsidianTaskNotesExtension.Models;
 
 namespace ObsidianTaskNotesExtension.Services;
 
-public class TaskNotesApiClient
+public class TaskNotesApiClient : IDisposable
 {
     private readonly SettingsManager _settings;
     private readonly HttpClient _httpClient;
@@ -38,13 +39,18 @@ public class TaskNotesApiClient
 
     public async Task<(bool Success, string Message)> TestConnectionAsync()
     {
+        var healthUrl = $"{_settings.ApiBaseUrl}/api/health";
+        Debug.WriteLine($"[TaskNotesApi] TestConnection - URL: {healthUrl}");
         try
         {
             ConfigureAuthHeader();
-            var response = await _httpClient.GetAsync($"{_settings.ApiBaseUrl}/api/health");
+            var response = await _httpClient.GetAsync(healthUrl);
+            Debug.WriteLine($"[TaskNotesApi] TestConnection - Status: {(int)response.StatusCode} {response.ReasonPhrase}");
 
             if (response.IsSuccessStatusCode)
             {
+                var body = await response.Content.ReadAsStringAsync();
+                Debug.WriteLine($"[TaskNotesApi] TestConnection - Response: {body}");
                 return (true, "Connection successful!");
             }
 
@@ -52,14 +58,17 @@ public class TaskNotesApiClient
         }
         catch (HttpRequestException ex)
         {
+            Debug.WriteLine($"[TaskNotesApi] TestConnection - HttpRequestException: {ex.Message}");
             return (false, $"Connection failed: {ex.Message}");
         }
         catch (TaskCanceledException)
         {
+            Debug.WriteLine("[TaskNotesApi] TestConnection - Timed out");
             return (false, "Connection timed out. Is Obsidian running with TaskNotes HTTP API enabled?");
         }
         catch (Exception ex)
         {
+            Debug.WriteLine($"[TaskNotesApi] TestConnection - Exception: {ex.GetType().Name}: {ex.Message}");
             return (false, $"Error: {ex.Message}");
         }
     }
@@ -70,7 +79,63 @@ public class TaskNotesApiClient
         {
             ConfigureAuthHeader();
             var url = $"{_settings.ApiBaseUrl}/api/tasks";
+            Debug.WriteLine($"[TaskNotesApi] GetActiveTasks - URL: {url}");
             var response = await _httpClient.GetAsync(url);
+            Debug.WriteLine($"[TaskNotesApi] GetActiveTasks - Status: {(int)response.StatusCode}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Debug.WriteLine($"[TaskNotesApi] GetActiveTasks - Failed with status {(int)response.StatusCode}");
+                return new List<TaskItem>();
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            Debug.WriteLine($"[TaskNotesApi] GetActiveTasks - Response length: {json.Length} chars");
+            Debug.WriteLine($"[TaskNotesApi] GetActiveTasks - Response preview: {json[..Math.Min(500, json.Length)]}");
+
+            var apiResponse = JsonSerializer.Deserialize<ApiResponse>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            var tasks = apiResponse?.Data?.Tasks;
+
+            Debug.WriteLine($"[TaskNotesApi] GetActiveTasks - API success: {apiResponse?.Success}, total: {apiResponse?.Data?.Total}, deserialized: {tasks?.Count ?? 0}");
+
+            if (tasks != null)
+            {
+                foreach (var t in tasks.Take(5))
+                {
+                    Debug.WriteLine($"[TaskNotesApi]   Task: path='{t.Path}', title='{t.Title}', status='{t.Status}', completed={t.Completed}, archived={t.Archived}, due={t.DueString}");
+                }
+            }
+
+            // Filter for active tasks (not completed and not archived) plus tasks completed today
+            var activeTasks = tasks?
+                .Where(t => (!t.Completed && !t.Archived) || t.CompletedToday)
+                .ToList() ?? new List<TaskItem>();
+
+            Debug.WriteLine($"[TaskNotesApi] GetActiveTasks - After filtering: {activeTasks.Count} active tasks (including completed today)");
+
+            return activeTasks;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TaskNotesApi] GetActiveTasks - Exception: {ex.GetType().Name}: {ex.Message}");
+            Debug.WriteLine($"[TaskNotesApi] GetActiveTasks - StackTrace: {ex.StackTrace}");
+            return new List<TaskItem>();
+        }
+    }
+
+    public async Task<List<TaskItem>> GetAllTasksAsync()
+    {
+        try
+        {
+            ConfigureAuthHeader();
+            var url = $"{_settings.ApiBaseUrl}/api/tasks";
+            Debug.WriteLine($"[TaskNotesApi] GetAllTasks - URL: {url}");
+            var response = await _httpClient.GetAsync(url);
+            Debug.WriteLine($"[TaskNotesApi] GetAllTasks - Status: {(int)response.StatusCode}");
 
             if (!response.IsSuccessStatusCode)
             {
@@ -78,20 +143,19 @@ public class TaskNotesApiClient
             }
 
             var json = await response.Content.ReadAsStringAsync();
-            var tasks = JsonSerializer.Deserialize<List<TaskItem>>(json, new JsonSerializerOptions
+            var apiResponse = JsonSerializer.Deserialize<ApiResponse>(json, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
 
-            // Filter for active tasks (not completed and not archived)
-            var activeTasks = tasks?
-                .Where(t => !t.Completed && !t.Archived)
-                .ToList() ?? new List<TaskItem>();
+            var tasks = apiResponse?.Data?.Tasks;
+            Debug.WriteLine($"[TaskNotesApi] GetAllTasks - Total: {tasks?.Count ?? 0}");
 
-            return activeTasks;
+            return tasks ?? new List<TaskItem>();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Debug.WriteLine($"[TaskNotesApi] GetAllTasks - Exception: {ex.GetType().Name}: {ex.Message}");
             return new List<TaskItem>();
         }
     }
@@ -102,8 +166,11 @@ public class TaskNotesApiClient
         {
             ConfigureAuthHeader();
             var encodedId = HttpUtility.UrlEncode(taskId);
-            var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}/toggle";
+            var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}/toggle-status";
             var response = await _httpClient.PostAsync(url, null);
+
+            Debug.WriteLine($"[TaskNotesApi] ToggleStatusAsync - API success: {response.IsSuccessStatusCode},");
+            Debug.WriteLine($"[TaskNotesApi] ToggleStatusAsync - Response preview: {response.Content}");
 
             return response.IsSuccessStatusCode;
         }
@@ -147,5 +214,11 @@ public class TaskNotesApiClient
         }
 
         return $"obsidian://open?file={HttpUtility.UrlEncode(filePath)}";
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

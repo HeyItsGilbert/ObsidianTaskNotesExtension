@@ -26,6 +26,7 @@ public partial class ObsidianTaskNotesExtensionCommandsProvider : CommandProvide
 
         // Create pages
         var tasksPage = new ObsidianTaskNotesExtensionPage(_apiClient);
+        var allTasksPage = new AllTasksPage(_apiClient);
         var settingsPage = new SettingsPage(_settingsManager, _apiClient);
 
         _commands =
@@ -34,6 +35,11 @@ public partial class ObsidianTaskNotesExtensionCommandsProvider : CommandProvide
             {
                 Title = "Obsidian Tasks",
                 Subtitle = "View and manage your TaskNotes tasks"
+            },
+            new CommandItem(allTasksPage)
+            {
+                Title = "Obsidian All Tasks",
+                Subtitle = "View all tasks including completed and archived"
             },
             new CommandItem(settingsPage)
             {

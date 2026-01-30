@@ -14,29 +14,26 @@ using ObsidianTaskNotesExtension.Services;
 
 namespace ObsidianTaskNotesExtension.Pages;
 
-internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
+internal sealed partial class AllTasksPage : DynamicListPage
 {
     private readonly TaskNotesApiClient _apiClient;
     private List<TaskItem> _tasks = new();
     private string? _errorMessage;
     private string _searchText = string.Empty;
 
-    public ObsidianTaskNotesExtensionPage(TaskNotesApiClient apiClient)
+    public AllTasksPage(TaskNotesApiClient apiClient)
     {
         _apiClient = apiClient;
 
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
-        Title = "Obsidian Task Notes";
-        Name = "Tasks";
+        Title = "All Obsidian Tasks";
+        Name = "All Tasks";
 
-        // Start loading tasks
         FetchTasksAsync();
     }
 
     public override IListItem[] GetItems()
     {
-        Debug.WriteLine($"[ExtensionPage] GetItems called - tasks: {_tasks.Count}, error: '{_errorMessage ?? "(none)"}', search: '{_searchText}'");
-
         var items = new List<IListItem>();
 
         if (_errorMessage != null)
@@ -45,7 +42,7 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
             {
                 Title = "Connection Error",
                 Subtitle = _errorMessage,
-                Icon = new IconInfo("\uE783") // Error icon
+                Icon = new IconInfo("\uE783")
             });
         }
         else if (_tasks.Count == 0)
@@ -54,7 +51,7 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
             {
                 Title = "No tasks found",
                 Subtitle = "Create tasks in Obsidian with TaskNotes plugin",
-                Icon = new IconInfo("\uE8E5") // Empty icon
+                Icon = new IconInfo("\uE8E5")
             });
         }
         else
@@ -69,13 +66,14 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
                 {
                     Title = "No matching tasks",
                     Subtitle = $"No tasks found matching '{_searchText}'",
-                    Icon = new IconInfo("\uE721") // Search icon
+                    Icon = new IconInfo("\uE721")
                 });
             }
             else
             {
                 var taskItems = filteredTasks
                     .OrderBy(t => t.Completed ? 1 : 0)
+                    .ThenBy(t => t.Archived ? 1 : 0)
                     .ThenBy(t => t.IsOverdue ? 0 : 1)
                     .ThenBy(t => t.Due ?? DateTime.MaxValue)
                     .ThenBy(t => GetPrioritySortOrder(t.Priority))
@@ -85,13 +83,12 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
             }
         }
 
-        // Always add refresh command at the end
         var refreshCommand = new RefreshListCommand(RefreshTasks);
         items.Add(new ListItem(refreshCommand)
         {
             Title = "Refresh Tasks",
             Subtitle = "Reload tasks from TaskNotes API",
-            Icon = new IconInfo("\uE72C") // Sync/Refresh icon
+            Icon = new IconInfo("\uE72C")
         });
 
         return items.ToArray();
@@ -107,8 +104,8 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
         return new ListItem(toggleCommand)
         {
             Title = task.Title,
-            Subtitle = FormatDueDate(task),
-            Icon = GetPriorityIcon(task),
+            Subtitle = FormatSubtitle(task),
+            Icon = GetIcon(task),
             MoreCommands = [
                 new CommandContextItem(openCommand),
                 new CommandContextItem(archiveCommand),
@@ -117,79 +114,48 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
         };
     }
 
-    private static string FormatDueDate(TaskItem task)
+    private static string FormatSubtitle(TaskItem task)
     {
-        if (task.CompletedToday)
+        var status = task.Archived ? "Archived" : task.Completed ? "Completed" : "Active";
+
+        if (task.Due.HasValue)
         {
-            return "Completed today";
+            var due = task.Due.Value;
+            if (!task.Completed && !task.Archived && task.IsOverdue)
+            {
+                var daysOverdue = (DateTime.Today - due.Date).Days;
+                return $"{status} · Overdue by {daysOverdue} day{(daysOverdue == 1 ? "" : "s")}";
+            }
+
+            return $"{status} · Due: {due:MMM d}";
         }
 
-        if (task.Completed)
-        {
-            return "Completed";
-        }
-
-        if (!task.Due.HasValue)
-        {
-            return "No due date";
-        }
-
-        var due = task.Due.Value;
-
-        if (task.IsOverdue)
-        {
-            var daysOverdue = (DateTime.Today - due.Date).Days;
-            return daysOverdue == 1 ? "Overdue by 1 day" : $"Overdue by {daysOverdue} days";
-        }
-
-        if (task.IsDueToday)
-        {
-            return "Due today";
-        }
-
-        if (task.IsDueTomorrow)
-        {
-            return "Due tomorrow";
-        }
-
-        var daysUntil = (due.Date - DateTime.Today).Days;
-        if (daysUntil <= 7)
-        {
-            return $"Due in {daysUntil} days";
-        }
-
-        return $"Due: {due:MMM d}";
+        return status;
     }
 
-    private static IconInfo GetPriorityIcon(TaskItem task)
+    private static IconInfo GetIcon(TaskItem task)
     {
+        if (task.Archived)
+        {
+            return new IconInfo("\uE7B8"); // Archive icon
+        }
+
         if (task.Completed)
         {
-            return new IconInfo("\uE73E"); // Checkmark icon for completed
+            return new IconInfo("\uE73E"); // Checkmark
         }
 
         if (task.IsOverdue)
         {
-            return new IconInfo("\uE7BA"); // Warning icon for overdue
+            return new IconInfo("\uE7BA"); // Warning
         }
 
-        var priority = task.Priority?.ToLowerInvariant() ?? "";
-
-        return priority switch
-        {
-            "1-urgent" or "urgent" or "1" => new IconInfo("\uE91B"), // Red circle
-            "2-high" or "high" or "2" => new IconInfo("\uE91B"),     // Orange/yellow
-            "3-medium" or "medium" or "3" => new IconInfo("\uE91B"), // Green
-            "4-normal" or "normal" or "4" => new IconInfo("\uE91B"), // Blue
-            "5-low" or "low" or "5" => new IconInfo("\uE91B"),       // Gray
-            _ => new IconInfo("\uE73A")                               // Default checkbox
-        };
+        return new IconInfo("\uE73A"); // Default checkbox
     }
 
     private static int GetPrioritySortOrder(string? priority)
     {
         var p = priority?.ToLowerInvariant() ?? "";
-
         return p switch
         {
             "1-urgent" or "urgent" or "1" => 1,
@@ -197,7 +163,7 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
             "3-medium" or "medium" or "3" => 3,
             "4-normal" or "normal" or "4" => 4,
             "5-low" or "low" or "5" => 5,
-            _ => 4 // Default to normal priority
+            _ => 4
         };
     }
 
@@ -208,16 +174,12 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
 
     private async void FetchTasksAsync()
     {
-        Debug.WriteLine("[ExtensionPage] FetchTasksAsync - Starting");
         IsLoading = true;
         _errorMessage = null;
 
         try
         {
-            // First test connection
-            Debug.WriteLine("[ExtensionPage] FetchTasksAsync - Testing connection...");
             var (success, message) = await _apiClient.TestConnectionAsync();
-            Debug.WriteLine($"[ExtensionPage] FetchTasksAsync - Connection test: success={success}, message='{message}'");
 
             if (!success)
             {
@@ -226,14 +188,12 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
             }
             else
             {
-                Debug.WriteLine("[ExtensionPage] FetchTasksAsync - Fetching tasks...");
-                _tasks = await _apiClient.GetActiveTasksAsync();
-                Debug.WriteLine($"[ExtensionPage] FetchTasksAsync - Got {_tasks.Count} tasks");
+                _tasks = await _apiClient.GetAllTasksAsync();
+                Debug.WriteLine($"[AllTasksPage] FetchTasksAsync - Got {_tasks.Count} tasks");
             }
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ExtensionPage] FetchTasksAsync - Exception: {ex.GetType().Name}: {ex.Message}");
             _errorMessage = $"Error: {ex.Message}";
             _tasks = new List<TaskItem>();
         }
@@ -241,7 +201,6 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
         {
             IsLoading = false;
             RaiseItemsChanged();
-            Debug.WriteLine($"[ExtensionPage] FetchTasksAsync - Done. Tasks: {_tasks.Count}, Error: '{_errorMessage ?? "(none)"}'");
         }
     }
 
