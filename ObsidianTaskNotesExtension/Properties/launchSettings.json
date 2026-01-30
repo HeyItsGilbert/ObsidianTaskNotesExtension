@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "ObsidianTaskNotesExtension (Package)": {
+      "commandName": "MsixPackage",
+      "doNotLaunchApp": true
+    },
+    "ObsidianTaskNotesExtension (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
