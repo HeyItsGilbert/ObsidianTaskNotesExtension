@@ -70,13 +70,22 @@ public class PomodoroStatusResponse
     public PomodoroStatus? Data { get; set; }
 }
 
+public class PomodoroSessionsData
+{
+    [JsonPropertyName("sessions")]
+    public List<PomodoroSession>? Sessions { get; set; }
+
+    [JsonPropertyName("total")]
+    public int Total { get; set; }
+}
+
 public class PomodoroSessionsResponse
 {
     [JsonPropertyName("success")]
     public bool Success { get; set; }
 
     [JsonPropertyName("data")]
-    public List<PomodoroSession>? Data { get; set; }
+    public PomodoroSessionsData? Data { get; set; }
 }
 
 public class PomodoroStatsResponse

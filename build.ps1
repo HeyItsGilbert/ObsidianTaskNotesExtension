@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 
 # Bootstrap dependencies
 if ($Bootstrap.IsPresent) {
-  Get-PackageProvider -Name Nuget -ForceBootstrap | Out-Null
+  PackageManagement\Get-PackageProvider -Name Nuget -ForceBootstrap | Out-Null
   Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
   if ((Test-Path -Path ./requirements.psd1)) {
     if (-not (Get-Module -Name PSDepend -ListAvailable)) {
@@ -41,6 +41,6 @@ if ($PSCmdlet.ParameterSetName -eq 'Help') {
   Get-PSakeScriptTasks -BuildFile $psakeFile |
     Format-Table -Property Name, Description, Alias, DependsOn
 } else {
-  Invoke-psake -BuildFile $psakeFile -TaskList $Task -NoLogo -Properties $Properties -Parameters $Parameters
+  Invoke-psake -buildFile $psakeFile -taskList $Task -nologo -properties $Properties -parameters $Parameters
   exit ([int](-not $psake.build_success))
 }

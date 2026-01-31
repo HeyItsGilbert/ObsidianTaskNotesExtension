@@ -397,7 +397,7 @@ public partial class TaskNotesApiClient : IDisposable
 
             var body = await response.Content.ReadAsStringAsync();
             var result = DeserializeResponse(body, "GetActiveTimeSessions", TaskNotesJsonContext.Default.ActiveSessionsResponse);
-            return result?.Data ?? new List<ActiveSession>();
+            return result?.Data?.ActiveSessions ?? new List<ActiveSession>();
         }
         catch (Exception ex)
         {
@@ -674,7 +674,7 @@ public partial class TaskNotesApiClient : IDisposable
 
             var body = await response.Content.ReadAsStringAsync();
             var result = DeserializeResponse(body, "GetPomodoroSessions", TaskNotesJsonContext.Default.PomodoroSessionsResponse);
-            return result?.Data ?? new List<PomodoroSession>();
+            return result?.Data?.Sessions ?? new List<PomodoroSession>();
         }
         catch (Exception ex)
         {

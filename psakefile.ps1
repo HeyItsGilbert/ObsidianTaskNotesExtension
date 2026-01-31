@@ -5,7 +5,8 @@
 # Task configuration
 $projectPath = Join-Path $PSScriptRoot "ObsidianTaskNotesExtension"
 $solutionPath = Join-Path $PSScriptRoot "ObsidianTaskNotesExtension.sln"
-$csprojPath = Join-Path $projectPath "ObsidianTaskNotesExtension" "ObsidianTaskNotesExtension.csproj"
+$csprojPath = Join-Path $projectPath "ObsidianTaskNotesExtension.csproj"
+$installerOutputDir = Join-Path $projectPath "bin\Release\installer"
 $buildConfiguration = "Debug"
 $runtimes = @("win-x64", "win-arm64")
 
@@ -95,7 +96,7 @@ Task PackageMsix -Depends Publish -Description "Create MSIX package" {
     & dotnet publish $csprojPath `
       --configuration Release `
       --runtime $runtime `
-      --output bin/Release/msix/$runtime `
+      --output $installerOutputDir/msix/$runtime `
       --verbosity normal
       
     if ($LASTEXITCODE -ne 0) {
@@ -206,9 +207,8 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
   }
   Write-Host "Version: $Version" -ForegroundColor Yellow
 
-  $innerProjectDir = Join-Path $projectPath "ObsidianTaskNotesExtension"
-  $setupTemplate = Join-Path $innerProjectDir "setup-template.iss"
-  $installerOutputDir = Join-Path $innerProjectDir "bin\Release\installer"
+  $setupTemplate = Join-Path $projectPath "setup-template.iss"
+  $installerOutputDir = Join-Path $projectPath "bin\Release\installer"
 
   # Verify Inno Setup is installed
   $InnoSetupPath = "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe"
@@ -234,7 +234,7 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
   foreach ($platform in $platforms) {
     Write-Host "`n=== Building $platform installer ===" -ForegroundColor Cyan
     
-    $publishDir = Join-Path $innerProjectDir "bin\Release\net9.0-windows10.0.26100.0\win-$platform\publish"
+    $publishDir = Join-Path $projectPath "bin\Release\net9.0-windows10.0.26100.0\win-$platform\publish"
     
     # Verify publish directory exists
     if (-not (Test-Path $publishDir)) {
@@ -261,15 +261,20 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
     } else {
       $setupScript = $setupScript -replace '(\[Setup\][^\[]*)(MinVersion=)', "`$1ArchitecturesAllowed=x64compatible`r`nArchitecturesInstallIn64BitMode=x64compatible`r`n`$2"
     }
+
+    #Update the License file with a resolved path
+    $licensePath = Resolve-Path (Join-Path $projectPath "..\LICENSE.txt")
+    $setupScript = $setupScript -replace 'LicenseFile=LICENSE.txt', "LicenseFile=`"$licensePath`""
     
     # Write platform-specific setup script
-    $platformSetupPath = Join-Path $innerProjectDir "setup-$platform.iss"
+    $platformSetupPath = Join-Path $projectPath "setup-$platform.iss"
     $setupScript | Out-File -FilePath $platformSetupPath -Encoding UTF8
     
     # Build installer
     Write-Host "Creating $platform installer with Inno Setup..." -ForegroundColor Yellow
-    Push-Location $innerProjectDir
+    Push-Location $PSScriptRoot
     & $InnoSetupPath $platformSetupPath
+    Pop-Location
     
     if ($LASTEXITCODE -eq 0) {
       $installer = Get-ChildItem "$installerOutputDir\*-$platform.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -307,10 +312,8 @@ Task ReleaseExe -Depends Clean, Restore, BuildDebug, Analyze, Test, BuildRelease
 Task VerifyInstallers -Description "Verify that EXE installers were created successfully" {
   Write-Host "Verifying installers..." -ForegroundColor Green
   
-  $installerDir = Join-Path $projectPath "ObsidianTaskNotesExtension\bin\Release\installer"
-  
-  $x64Installer = Get-ChildItem "$installerDir\*-x64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-  $arm64Installer = Get-ChildItem "$installerDir\*-arm64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+  $x64Installer = Get-ChildItem "$installerOutputDir\*-x64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+  $arm64Installer = Get-ChildItem "$installerOutputDir\*-arm64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
   
   $foundAny = $false
   
@@ -343,7 +346,6 @@ Task CICD -Depends ReleaseExe, VerifyInstallers -Description "Full CI/CD pipelin
   Write-Host "CI/CD Pipeline completed successfully!" -ForegroundColor Green
   Write-Host "========================================" -ForegroundColor Cyan
   
-  $installerDir = Join-Path $projectPath "ObsidianTaskNotesExtension\bin\Release\installer"
   Write-Host "`nReady for release. Installers at:" -ForegroundColor Yellow
-  Write-Host "  $installerDir" -ForegroundColor White
+  Write-Host "  $installerOutputDir" -ForegroundColor White
 }

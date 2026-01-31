@@ -9,7 +9,6 @@
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
 
-    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -84,10 +83,13 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'!='Debug'">
-    <!-- In Release builds, trimming is enabled by default. 
-         feel free to disable this if needed -->
-    <PublishTrimmed>true</PublishTrimmed>
-    <PublishSingleFile>true</PublishSingleFile>
+    <!-- In Release builds, trimming is only enabled during publish operations (with RuntimeIdentifier).
+         During regular builds, trimming is disabled to avoid ILLink errors. -->
+    <PublishTrimmed Condition="'$(RuntimeIdentifier)'!=''">true</PublishTrimmed>
+    <!-- Only enable single file publishing when RuntimeIdentifier is specified (during publish) -->
+    <PublishSingleFile Condition="'$(RuntimeIdentifier)'!=''">true</PublishSingleFile>
+    <!-- Set publish profile only when RuntimeIdentifier is specified (during publish operations) -->
+    <PublishProfile Condition="'$(RuntimeIdentifier)'!=''">win-$([System.String]::Copy('$(RuntimeIdentifier)').Replace('win-', '')).pubxml</PublishProfile>
 
     <!-- In release, also ignore the aforementioned ILLink warning -->
     <ILLinkTreatWarningsAsErrors>false</ILLinkTreatWarningsAsErrors>
