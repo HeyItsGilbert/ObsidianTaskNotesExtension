@@ -12,11 +12,6 @@ on:
         description: "Version number (leave empty to auto-detect from csproj)"
         required: false
         type: string
-      release_notes:
-        description: "What is new in this version"
-        required: false
-        default: "New release with latest updates and improvements."
-        type: string
       create_release:
         description: "Create GitHub Release"
         required: false
@@ -56,7 +51,8 @@ jobs:
             if (-not $version) { 
               # Try to get version from Package.appxmanifest
               $manifest = [xml](Get-Content "${{ env.EXTENSION_NAME }}/Package.appxmanifest")
-              $version = $manifest.Package.Identity.Version
+              # Convert to semver format
+              $version = $manifest.Package.Identity.Version -replace '^(\d+)\.(\d+)\.(\d+)\.(\d+)$', '$1.$2.$3'
             }
             if (-not $version) { 
               $version = "0.0.1.0"
