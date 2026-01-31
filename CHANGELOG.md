@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.2.0] 2026-01-30
+
+### Added
+
+- Comprehensive unit test suite with 76 tests covering models,
+  serialization, and API client functionality
+- Test infrastructure with xUnit, FluentAssertions, and mocked
+  HTTP message handler for isolated testing
+- Missing properties to TaskItem model: contexts, details, and
+  timeEstimate fields per OpenAPI specification
+
+### Fixed
+
+- API client URL encoding consistency: UpdateTaskAsync now
+  properly encodes task IDs like other endpoints
+- OpenAPI specification compliance for TaskItem model
+- Test project now properly targets Windows platform
+
+### Changed
+
+- Added analyzer suppression for test method naming conventions
+- Updated Directory.Packages.props with test package versions
+
 ## [0.1.0] 2026-01-30
 
 ### Added
