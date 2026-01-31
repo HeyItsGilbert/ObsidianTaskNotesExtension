@@ -206,9 +206,8 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
   }
   Write-Host "Version: $Version" -ForegroundColor Yellow
 
-  $innerProjectDir = $projectPath
-  $setupTemplate = Join-Path $innerProjectDir "setup-template.iss"
-  $installerOutputDir = Join-Path $innerProjectDir "bin\Release\installer"
+  $setupTemplate = Join-Path $projectPath "setup-template.iss"
+  $installerOutputDir = Join-Path $projectPath "bin\Release\installer"
 
   # Verify Inno Setup is installed
   $InnoSetupPath = "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe"
@@ -234,7 +233,7 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
   foreach ($platform in $platforms) {
     Write-Host "`n=== Building $platform installer ===" -ForegroundColor Cyan
     
-    $publishDir = Join-Path $innerProjectDir "bin\Release\net9.0-windows10.0.26100.0\win-$platform\publish"
+    $publishDir = Join-Path $projectPath "bin\Release\net9.0-windows10.0.26100.0\win-$platform\publish"
     
     # Verify publish directory exists
     if (-not (Test-Path $publishDir)) {
@@ -263,13 +262,14 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
     }
     
     # Write platform-specific setup script
-    $platformSetupPath = Join-Path $innerProjectDir "setup-$platform.iss"
+    $platformSetupPath = Join-Path $projectPath "setup-$platform.iss"
     $setupScript | Out-File -FilePath $platformSetupPath -Encoding UTF8
     
     # Build installer
     Write-Host "Creating $platform installer with Inno Setup..." -ForegroundColor Yellow
     Push-Location $PSScriptRoot
     & $InnoSetupPath $platformSetupPath
+    Pop-Location
     
     if ($LASTEXITCODE -eq 0) {
       $installer = Get-ChildItem "$installerOutputDir\*-$platform.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
