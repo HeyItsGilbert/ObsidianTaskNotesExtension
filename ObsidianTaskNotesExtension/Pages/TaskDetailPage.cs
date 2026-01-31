@@ -229,6 +229,8 @@ internal sealed partial class TaskDetailPage : DynamicListPage
 
     private void Refresh()
     {
+        IsLoading = true;
+        RaiseItemsChanged();
         LoadTimeDataAsync();
     }
 
@@ -244,6 +246,7 @@ internal sealed partial class TaskDetailPage : DynamicListPage
         }
         finally
         {
+            IsLoading = false;
             RaiseItemsChanged();
         }
     }

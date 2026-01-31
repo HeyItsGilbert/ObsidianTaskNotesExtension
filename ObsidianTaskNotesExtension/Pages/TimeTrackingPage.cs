@@ -169,12 +169,13 @@ internal sealed partial class TimeTrackingPage : DynamicListPage
 
     private void Refresh()
     {
+        IsLoading = true;
+        RaiseItemsChanged();
         FetchDataAsync();
     }
 
     private async void FetchDataAsync()
     {
-        IsLoading = true;
         _errorMessage = null;
 
         try

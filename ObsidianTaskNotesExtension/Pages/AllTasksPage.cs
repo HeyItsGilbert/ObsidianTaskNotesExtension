@@ -182,12 +182,16 @@ internal sealed partial class AllTasksPage : DynamicListPage
 
     private void RefreshTasks()
     {
+        // Set loading state immediately and notify UI to show spinner
+        IsLoading = true;
+        RaiseItemsChanged();
+        
+        // Then start the async fetch
         FetchTasksAsync();
     }
 
     private async void FetchTasksAsync()
     {
-        IsLoading = true;
         _errorMessage = null;
 
         try

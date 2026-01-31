@@ -9,7 +9,9 @@
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
 
-    <EnableMsixTooling>true</EnableMsixTooling>
+    <!-- Only enable MSIX when Platform is explicitly set (not AnyCPU) -->
+    <EnableMsixTooling Condition="'$(Platform)' != '' AND '$(Platform)' != 'AnyCPU'">true</EnableMsixTooling>
+    <EnableMsixTooling Condition="'$(Platform)' == '' OR '$(Platform)' == 'AnyCPU'">false</EnableMsixTooling>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 

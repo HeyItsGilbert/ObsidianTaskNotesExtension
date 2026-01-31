@@ -164,6 +164,14 @@ internal sealed partial class StatsPage : DynamicListPage
             });
         }
 
+        // Add refresh command
+        items.Add(new ListItem(new Commands.RefreshListCommand(Refresh))
+        {
+            Title = "🔄 Refresh",
+            Subtitle = "Reload statistics",
+            Icon = new IconInfo("\uE72C")
+        });
+
         return items.ToArray();
     }
 
@@ -172,9 +180,15 @@ internal sealed partial class StatsPage : DynamicListPage
         // No search filtering needed for stats page
     }
 
-    private async void FetchStatsAsync()
+    private void Refresh()
     {
         IsLoading = true;
+        RaiseItemsChanged();
+        FetchStatsAsync();
+    }
+
+    private async void FetchStatsAsync()
+    {
         _errorMessage = null;
 
         try
