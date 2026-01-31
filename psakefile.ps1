@@ -206,7 +206,7 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
   }
   Write-Host "Version: $Version" -ForegroundColor Yellow
 
-  $innerProjectDir = Join-Path $projectPath "ObsidianTaskNotesExtension"
+  $innerProjectDir = $projectPath
   $setupTemplate = Join-Path $innerProjectDir "setup-template.iss"
   $installerOutputDir = Join-Path $innerProjectDir "bin\Release\installer"
 
