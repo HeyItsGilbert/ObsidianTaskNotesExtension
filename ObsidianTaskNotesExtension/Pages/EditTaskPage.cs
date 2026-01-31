@@ -112,6 +112,7 @@ internal sealed partial class EditTaskFormContent : FormContent
             Projects = ParseCommaSeparated(formInput["projects"]?.GetValue<string>()),
         };
 
+        Debug.WriteLine($"[EditTaskPage] Submitting update for task: {_task.Id}");
         _ = UpdateAsync(request);
         return CommandResult.GoBack();
     }
@@ -119,7 +120,14 @@ internal sealed partial class EditTaskFormContent : FormContent
     private async System.Threading.Tasks.Task UpdateAsync(UpdateTaskRequest request)
     {
         var result = await _apiClient.UpdateTaskAsync(_task.Id, request);
-        Debug.WriteLine($"[EditTaskPage] Updated task: {result?.Title ?? "(failed)"}");
+        if (result != null)
+        {
+            Debug.WriteLine($"[EditTaskPage] Successfully updated task: {result.Title}");
+        }
+        else
+        {
+            Debug.WriteLine($"[EditTaskPage] Failed to update task: {_task.Id}");
+        }
     }
 
     private static string? NullIfEmpty(string? value) =>

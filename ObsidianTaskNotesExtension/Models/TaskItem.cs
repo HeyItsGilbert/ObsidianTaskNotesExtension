@@ -52,11 +52,20 @@ public class TaskItem
     [JsonPropertyName("projects")]
     public string[]? Projects { get; set; }
 
+    [JsonPropertyName("contexts")]
+    public string[]? Contexts { get; set; }
+
     [JsonPropertyName("scheduled")]
     public string? Scheduled { get; set; }
 
     [JsonPropertyName("dateCreated")]
     public string? DateCreated { get; set; }
+
+    [JsonPropertyName("details")]
+    public string? Details { get; set; }
+
+    [JsonPropertyName("timeEstimate")]
+    public string? TimeEstimate { get; set; }
 
     [JsonPropertyName("dateModified")]
     public string? DateModified { get; set; }

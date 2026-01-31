@@ -190,12 +190,13 @@ internal sealed partial class PomodoroPage : DynamicListPage
 
     private void Refresh()
     {
+        IsLoading = true;
+        RaiseItemsChanged();
         FetchDataAsync();
     }
 
     private async void FetchDataAsync()
     {
-        IsLoading = true;
         _errorMessage = null;
 
         try

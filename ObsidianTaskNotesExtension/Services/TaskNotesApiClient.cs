@@ -178,7 +178,7 @@ public partial class TaskNotesApiClient : IDisposable
         try
         {
             ConfigureAuthHeader();
-            var encodedId = HttpUtility.UrlEncode(taskId);
+            var encodedId = Uri.EscapeDataString(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}/toggle-status";
             var response = await _httpClient.PostAsync(url, null);
 
@@ -198,7 +198,7 @@ public partial class TaskNotesApiClient : IDisposable
         try
         {
             ConfigureAuthHeader();
-            var encodedId = HttpUtility.UrlEncode(taskId);
+            var encodedId = Uri.EscapeDataString(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}/archive";
             var response = await _httpClient.PostAsync(url, null);
 
@@ -242,7 +242,7 @@ public partial class TaskNotesApiClient : IDisposable
         try
         {
             ConfigureAuthHeader();
-            var encodedId = HttpUtility.UrlEncode(taskId);
+            var encodedId = Uri.EscapeDataString(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}";
             Debug.WriteLine($"[TaskNotesApi] GetTask - URL: {url}");
             var response = await _httpClient.GetAsync(url);
@@ -265,14 +265,22 @@ public partial class TaskNotesApiClient : IDisposable
         try
         {
             ConfigureAuthHeader();
-            var encodedId = HttpUtility.UrlEncode(taskId);
+            var encodedId = Uri.EscapeDataString(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}";
             var json = JsonSerializer.Serialize(request, TaskNotesJsonContext.Default.UpdateTaskRequest);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             Debug.WriteLine($"[TaskNotesApi] UpdateTask - URL: {url}");
+            Debug.WriteLine($"[TaskNotesApi] UpdateTask - TaskId: {taskId}");
+            Debug.WriteLine($"[TaskNotesApi] UpdateTask - Request payload: {json}");
             var response = await _httpClient.PutAsync(url, content);
+            Debug.WriteLine($"[TaskNotesApi] UpdateTask - Status: {(int)response.StatusCode} {response.ReasonPhrase}");
 
-            if (!response.IsSuccessStatusCode) return null;
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                Debug.WriteLine($"[TaskNotesApi] UpdateTask - Error response: {errorBody}");
+                return null;
+            }
 
             var body = await response.Content.ReadAsStringAsync();
             var result = DeserializeResponse(body, "UpdateTask", TaskNotesJsonContext.Default.SingleTaskResponse);
@@ -290,7 +298,7 @@ public partial class TaskNotesApiClient : IDisposable
         try
         {
             ConfigureAuthHeader();
-            var encodedId = HttpUtility.UrlEncode(taskId);
+            var encodedId = Uri.EscapeDataString(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}";
             Debug.WriteLine($"[TaskNotesApi] DeleteTask - URL: {url}");
             var response = await _httpClient.DeleteAsync(url);
@@ -310,7 +318,7 @@ public partial class TaskNotesApiClient : IDisposable
         try
         {
             ConfigureAuthHeader();
-            var encodedId = HttpUtility.UrlEncode(taskId);
+            var encodedId = Uri.EscapeDataString(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}/time/start";
             Debug.WriteLine($"[TaskNotesApi] StartTimeTracking - URL: {url}");
             var response = await _httpClient.PostAsync(url, null);
@@ -328,7 +336,7 @@ public partial class TaskNotesApiClient : IDisposable
         try
         {
             ConfigureAuthHeader();
-            var encodedId = HttpUtility.UrlEncode(taskId);
+            var encodedId = Uri.EscapeDataString(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}/time/start-with-description";
             var json = JsonSerializer.Serialize(new DescriptionRequest { Description = description }, TaskNotesJsonContext.Default.DescriptionRequest);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -348,7 +356,7 @@ public partial class TaskNotesApiClient : IDisposable
         try
         {
             ConfigureAuthHeader();
-            var encodedId = HttpUtility.UrlEncode(taskId);
+            var encodedId = Uri.EscapeDataString(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}/time/stop";
             Debug.WriteLine($"[TaskNotesApi] StopTimeTracking - URL: {url}");
             var response = await _httpClient.PostAsync(url, null);
@@ -366,7 +374,7 @@ public partial class TaskNotesApiClient : IDisposable
         try
         {
             ConfigureAuthHeader();
-            var encodedId = HttpUtility.UrlEncode(taskId);
+            var encodedId = Uri.EscapeDataString(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}/time";
             Debug.WriteLine($"[TaskNotesApi] GetTaskTime - URL: {url}");
             var response = await _httpClient.GetAsync(url);
@@ -440,7 +448,7 @@ public partial class TaskNotesApiClient : IDisposable
         try
         {
             ConfigureAuthHeader();
-            var encodedId = HttpUtility.UrlEncode(taskId);
+            var encodedId = Uri.EscapeDataString(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}/complete-instance";
             var json = JsonSerializer.Serialize(new DateRequest { Date = date }, TaskNotesJsonContext.Default.DateRequest);
             var content = new StringContent(json, Encoding.UTF8, "application/json");

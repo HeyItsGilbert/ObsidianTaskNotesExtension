@@ -216,13 +216,17 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
 
     private void RefreshTasks()
     {
+        // Set loading state immediately and notify UI to show spinner
+        IsLoading = true;
+        RaiseItemsChanged();
+        
+        // Then start the async fetch
         FetchTasksAsync();
     }
 
     private async void FetchTasksAsync()
     {
         Debug.WriteLine("[ExtensionPage] FetchTasksAsync - Starting");
-        IsLoading = true;
         _errorMessage = null;
 
         try

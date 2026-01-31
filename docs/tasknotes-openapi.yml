@@ -1,0 +1,713 @@
+openapi: 3.0.3
+info:
+  title: TaskNotes HTTP API
+  description: HTTP API for the TaskNotes Obsidian plugin
+  version: 1.0.0
+  contact:
+    url: https://tasknotes.dev/HTTP_API/
+
+servers:
+  - url: http://localhost:8080
+    description: Local TaskNotes server
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    TaskItem:
+      type: object
+      required:
+        - path
+        - title
+        - status
+      properties:
+        path:
+          type: string
+          description: File path of the task (serves as the task ID)
+          example: "TaskNotes/Tasks/Walk Dog.md"
+        title:
+          type: string
+          description: Task title
+        status:
+          type: string
+          description: Task status
+          enum: [todo, done, completed, archived]
+        due:
+          type: string
+          format: date
+          description: Due date (YYYY-MM-DD format)
+          nullable: true
+        priority:
+          type: string
+          description: Task priority
+          enum: ["", "1-urgent", "2-high", "3-medium", "4-normal", "5-low"]
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        projects:
+          type: array
+          items:
+            type: string
+          nullable: true
+        contexts:
+          type: array
+          items:
+            type: string
+          nullable: true
+        scheduled:
+          type: string
+          format: date
+          nullable: true
+        dateCreated:
+          type: string
+          format: date-time
+          nullable: true
+        dateModified:
+          type: string
+          format: date-time
+          nullable: true
+        details:
+          type: string
+          nullable: true
+        timeEstimate:
+          type: string
+          nullable: true
+
+    TasksResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            tasks:
+              type: array
+              items:
+                $ref: '#/components/schemas/TaskItem'
+            total:
+              type: integer
+            filtered:
+              type: integer
+
+    SingleTaskResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/TaskItem'
+
+    CreateTaskRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        priority:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
+        due:
+          type: string
+          format: date
+          nullable: true
+        scheduled:
+          type: string
+          format: date
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        projects:
+          type: array
+          items:
+            type: string
+          nullable: true
+        contexts:
+          type: array
+          items:
+            type: string
+          nullable: true
+        details:
+          type: string
+          nullable: true
+        timeEstimate:
+          type: string
+          nullable: true
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        priority:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
+        due:
+          type: string
+          format: date
+          nullable: true
+        scheduled:
+          type: string
+          format: date
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        projects:
+          type: array
+          items:
+            type: string
+          nullable: true
+        contexts:
+          type: array
+          items:
+            type: string
+          nullable: true
+        details:
+          type: string
+          nullable: true
+        timeEstimate:
+          type: string
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+
+    TaskStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        active:
+          type: integer
+        completed:
+          type: integer
+        overdue:
+          type: integer
+        archived:
+          type: integer
+        withTimeTracking:
+          type: integer
+
+    TimeStats:
+      type: object
+      properties:
+        totalMinutes:
+          type: number
+          format: double
+
+    PomodoroSession:
+      type: object
+      properties:
+        taskId:
+          type: string
+          nullable: true
+        taskTitle:
+          type: string
+          nullable: true
+        state:
+          type: string
+          enum: [active, paused, completed]
+        timeRemaining:
+          type: integer
+          nullable: true
+        duration:
+          type: integer
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PomodoroStats:
+      type: object
+      properties:
+        sessionsCompleted:
+          type: integer
+        totalFocusMinutes:
+          type: number
+          format: double
+        currentStreak:
+          type: integer
+        averageSessionMinutes:
+          type: number
+          format: double
+
+paths:
+  /api/health:
+    get:
+      summary: Health check endpoint
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+
+  /api/tasks:
+    get:
+      summary: Get all tasks
+      operationId: getTasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: Filter by status
+        - name: priority
+          in: query
+          schema:
+            type: string
+          description: Filter by priority
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search in task titles
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TasksResponse'
+
+    post:
+      summary: Create a new task
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '200':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleTaskResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/tasks/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Task file path (URL-encoded)
+        schema:
+          type: string
+        example: "TaskNotes%2FTasks%2FWalk%20Dog.md"
+
+    get:
+      summary: Get a specific task
+      operationId: getTask
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleTaskResponse'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update a task
+      operationId: updateTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleTaskResponse'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete a task
+      operationId: deleteTask
+      responses:
+        '200':
+          description: Task deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/tasks/{id}/toggle-status:
+    post:
+      summary: Toggle task completion status
+      operationId: toggleTaskStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Task file path (URL-encoded)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status toggled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleTaskResponse'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/tasks/{id}/archive:
+    post:
+      summary: Archive a task
+      operationId: archiveTask
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Task file path (URL-encoded)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task archived successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleTaskResponse'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/tasks/{id}/time/start:
+    post:
+      summary: Start time tracking for a task
+      operationId: startTimeTracking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Task file path (URL-encoded)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Time tracking started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /api/tasks/{id}/time/stop:
+    post:
+      summary: Stop time tracking for a task
+      operationId: stopTimeTracking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Task file path (URL-encoded)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Time tracking stopped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /api/stats:
+    get:
+      summary: Get task statistics
+      operationId: getStats
+      responses:
+        '200':
+          description: Task statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/TaskStats'
+
+  /api/time-stats:
+    get:
+      summary: Get time tracking statistics
+      operationId: getTimeStats
+      parameters:
+        - name: range
+          in: query
+          schema:
+            type: string
+          description: Time range (today, week, month, year)
+        - name: start
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start date
+        - name: end
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End date
+      responses:
+        '200':
+          description: Time tracking statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/TimeStats'
+
+  /api/pomodoro/start:
+    post:
+      summary: Start a pomodoro session
+      operationId: startPomodoro
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                taskId:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Pomodoro started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/PomodoroSession'
+
+  /api/pomodoro/stop:
+    post:
+      summary: Stop the current pomodoro session
+      operationId: stopPomodoro
+      responses:
+        '200':
+          description: Pomodoro stopped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /api/pomodoro/pause:
+    post:
+      summary: Pause the current pomodoro session
+      operationId: pausePomodoro
+      responses:
+        '200':
+          description: Pomodoro paused
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /api/pomodoro/resume:
+    post:
+      summary: Resume a paused pomodoro session
+      operationId: resumePomodoro
+      responses:
+        '200':
+          description: Pomodoro resumed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /api/pomodoro/status:
+    get:
+      summary: Get current pomodoro session status
+      operationId: getPomodoroStatus
+      responses:
+        '200':
+          description: Pomodoro status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      active:
+                        type: boolean
+                      session:
+                        $ref: '#/components/schemas/PomodoroSession'
+                        nullable: true
+                      timeRemaining:
+                        type: integer
+                        nullable: true
+                      statistics:
+                        $ref: '#/components/schemas/PomodoroStats'
+                        nullable: true
+
+  /api/pomodoro/sessions:
+    get:
+      summary: Get pomodoro session history
+      operationId: getPomodoroSessions
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+          description: Maximum number of sessions to return
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter by date
+      responses:
+        '200':
+          description: Pomodoro sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      sessions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PomodoroSession'
+                      total:
+                        type: integer
+
+  /api/pomodoro/stats:
+    get:
+      summary: Get pomodoro statistics
+      operationId: getPomodoroStats
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter by date
+      responses:
+        '200':
+          description: Pomodoro statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/PomodoroStats'
