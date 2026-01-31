@@ -9,6 +9,7 @@ using System.Linq;
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
 using ObsidianTaskNotesExtension.Commands;
+using ObsidianTaskNotesExtension.Helpers;
 using ObsidianTaskNotesExtension.Models;
 using ObsidianTaskNotesExtension.Services;
 
@@ -28,6 +29,7 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
         Title = "Obsidian Task Notes";
         Name = "Tasks";
+        ShowDetails = true;
 
         // Start loading tasks
         FetchTasksAsync();
@@ -113,6 +115,8 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
             Title = task.Title,
             Subtitle = FormatDueDate(task),
             Icon = GetPriorityIcon(task),
+            Tags = TagHelpers.CreateTaskTags(task),
+            Details = TagHelpers.CreateTaskDetails(task),
             MoreCommands = [
                 new CommandContextItem(new EditTaskPage(task, _apiClient)),
                 new CommandContextItem(openCommand),

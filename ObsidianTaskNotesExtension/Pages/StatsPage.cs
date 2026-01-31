@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
+using ObsidianTaskNotesExtension.Helpers;
 using ObsidianTaskNotesExtension.Models;
 using ObsidianTaskNotesExtension.Services;
 
@@ -40,65 +41,116 @@ internal sealed partial class StatsPage : DynamicListPage
             {
                 Title = "Error",
                 Subtitle = _errorMessage,
-                Icon = new IconInfo("\uE783")
+                Icon = new IconInfo("\uE783"),
+                Tags = [new Tag("Error") { Background = ColorHelpers.FromRgb(220, 53, 69), Foreground = ColorHelpers.FromRgb(255, 255, 255) }]
             });
             return items.ToArray();
         }
 
         if (_taskStats != null)
         {
+            // Total Tasks - highlight badge
             items.Add(new ListItem(new NoOpCommand())
             {
-                Title = "Total Tasks",
-                Subtitle = _taskStats.Total.ToString(),
-                Icon = new IconInfo("\uE8EF") // List icon
+                Title = "📋 Total Tasks",
+                Subtitle = "All tasks in your vault",
+                Icon = new IconInfo("\uE8EF"), // List icon
+                Tags = [new Tag($"{_taskStats.Total}")
+                {
+                    Background = ColorHelpers.FromRgb(0, 123, 255),
+                    Foreground = ColorHelpers.FromRgb(255, 255, 255),
+                    ToolTip = $"{_taskStats.Total} total tasks"
+                }]
             });
 
+            // Active Tasks - green badge
             items.Add(new ListItem(new NoOpCommand())
             {
-                Title = "Active Tasks",
-                Subtitle = _taskStats.Active.ToString(),
-                Icon = new IconInfo("\uE73A")
+                Title = "🎯 Active Tasks",
+                Subtitle = "Tasks in progress",
+                Icon = new IconInfo("\uE73A"),
+                Tags = [new Tag($"{_taskStats.Active}")
+                {
+                    Background = ColorHelpers.FromRgb(40, 167, 69),
+                    Foreground = ColorHelpers.FromRgb(255, 255, 255),
+                    ToolTip = $"{_taskStats.Active} active tasks"
+                }]
             });
 
+            // Completed Tasks - teal badge
             items.Add(new ListItem(new NoOpCommand())
             {
-                Title = "Completed Tasks",
-                Subtitle = _taskStats.Completed.ToString(),
-                Icon = new IconInfo("\uE73E")
+                Title = "✅ Completed Tasks",
+                Subtitle = "Tasks you've finished",
+                Icon = new IconInfo("\uE73E"),
+                Tags = [new Tag($"{_taskStats.Completed}")
+                {
+                    Icon = new IconInfo("\uE73E"),
+                    Background = ColorHelpers.FromRgb(32, 201, 151),
+                    Foreground = ColorHelpers.FromRgb(255, 255, 255),
+                    ToolTip = $"{_taskStats.Completed} completed tasks"
+                }]
             });
 
+            // Overdue Tasks - red badge (warning)
+            var overdueColor = _taskStats.Overdue > 0
+                ? ColorHelpers.FromRgb(220, 53, 69)  // Red for warning
+                : ColorHelpers.FromRgb(108, 117, 125); // Gray if none
             items.Add(new ListItem(new NoOpCommand())
             {
-                Title = "Overdue Tasks",
-                Subtitle = _taskStats.Overdue.ToString(),
-                Icon = new IconInfo("\uE7BA")
+                Title = "⚠️ Overdue Tasks",
+                Subtitle = _taskStats.Overdue > 0 ? "Needs attention!" : "You're on track!",
+                Icon = new IconInfo("\uE7BA"),
+                Tags = [new Tag($"{_taskStats.Overdue}")
+                {
+                    Icon = _taskStats.Overdue > 0 ? new IconInfo("\uE7BA") : null,
+                    Background = overdueColor,
+                    Foreground = ColorHelpers.FromRgb(255, 255, 255),
+                    ToolTip = $"{_taskStats.Overdue} overdue tasks"
+                }]
             });
 
+            // Archived Tasks - gray badge
             items.Add(new ListItem(new NoOpCommand())
             {
-                Title = "Archived Tasks",
-                Subtitle = _taskStats.Archived.ToString(),
-                Icon = new IconInfo("\uE7B8")
+                Title = "📦 Archived Tasks",
+                Subtitle = "Tasks moved to archive",
+                Icon = new IconInfo("\uE7B8"),
+                Tags = [new Tag($"{_taskStats.Archived}")
+                {
+                    Background = ColorHelpers.FromRgb(108, 117, 125),
+                    Foreground = ColorHelpers.FromRgb(255, 255, 255),
+                    ToolTip = $"{_taskStats.Archived} archived tasks"
+                }]
             });
 
+            // Tasks with Time Tracking - purple badge
             items.Add(new ListItem(new NoOpCommand())
             {
-                Title = "Tasks with Time Tracking",
-                Subtitle = _taskStats.WithTimeTracking.ToString(),
-                Icon = new IconInfo("\uE823")
+                Title = "⏱️ Tasks with Time Tracking",
+                Subtitle = "Tasks you've tracked time on",
+                Icon = new IconInfo("\uE823"),
+                Tags = [new Tag($"{_taskStats.WithTimeTracking}")
+                {
+                    Icon = new IconInfo("\uE823"),
+                    Background = ColorHelpers.FromRgb(102, 16, 242),
+                    Foreground = ColorHelpers.FromRgb(255, 255, 255),
+                    ToolTip = $"{_taskStats.WithTimeTracking} tasks with time tracking"
+                }]
             });
         }
 
         if (_timeStats != null)
         {
             var minutes = _timeStats.TotalMinutes;
-            var timeStr = minutes >= 60 ? $"{minutes / 60:F0}h {minutes % 60:F0}m" : $"{minutes:F0}m";
+            var timeTag = TagHelpers.CreateTimeTag(minutes, "Total");
+
             items.Add(new ListItem(new NoOpCommand())
             {
-                Title = "Total Time Tracked",
-                Subtitle = timeStr,
-                Icon = new IconInfo("\uE916")
+                Title = "🕐 Total Time Tracked",
+                Subtitle = "Across all tasks",
+                Icon = new IconInfo("\uE916"),
+                Tags = [timeTag]
             });
         }
 
@@ -107,7 +159,8 @@ internal sealed partial class StatsPage : DynamicListPage
             items.Add(new ListItem(new NoOpCommand())
             {
                 Title = "Loading...",
-                Icon = new IconInfo("\uE72C")
+                Icon = new IconInfo("\uE72C"),
+                Tags = [new Tag("Loading") { Background = ColorHelpers.FromRgb(108, 117, 125), Foreground = ColorHelpers.FromRgb(255, 255, 255) }]
             });
         }
 

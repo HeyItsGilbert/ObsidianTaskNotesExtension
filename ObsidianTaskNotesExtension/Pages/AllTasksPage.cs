@@ -9,6 +9,7 @@ using System.Linq;
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
 using ObsidianTaskNotesExtension.Commands;
+using ObsidianTaskNotesExtension.Helpers;
 using ObsidianTaskNotesExtension.Models;
 using ObsidianTaskNotesExtension.Services;
 
@@ -28,6 +29,7 @@ internal sealed partial class AllTasksPage : DynamicListPage
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
         Title = "All Obsidian Tasks";
         Name = "All Tasks";
+        ShowDetails = true;
 
         FetchTasksAsync();
     }
@@ -110,6 +112,8 @@ internal sealed partial class AllTasksPage : DynamicListPage
             Title = task.Title,
             Subtitle = FormatSubtitle(task),
             Icon = GetIcon(task),
+            Tags = TagHelpers.CreateTaskTags(task),
+            Details = TagHelpers.CreateTaskDetails(task),
             MoreCommands = [
                 new CommandContextItem(new EditTaskPage(task, _apiClient)),
                 new CommandContextItem(openCommand),
