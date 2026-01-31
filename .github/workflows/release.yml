@@ -104,8 +104,8 @@ jobs:
           }
 
           if ($errors.Count -gt 0) {
-            foreach ($error in $errors) {
-              Write-Host $error -ForegroundColor Red
+            foreach ($err in $errors) {
+              Write-Host $err -ForegroundColor Red
             }
             throw "Version validation failed"
           }
