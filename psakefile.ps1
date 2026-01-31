@@ -268,7 +268,7 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
     
     # Build installer
     Write-Host "Creating $platform installer with Inno Setup..." -ForegroundColor Yellow
-    Push-Location $innerProjectDir
+    Push-Location $PSScriptRoot
     & $InnoSetupPath $platformSetupPath
     
     if ($LASTEXITCODE -eq 0) {
