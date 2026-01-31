@@ -50,10 +50,7 @@ public class SettingsManager
                 Directory.CreateDirectory(SettingsDirectory);
             }
 
-            var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
+            var json = JsonSerializer.Serialize(settings, TaskNotesJsonContext.Default.ExtensionSettings);
 
             File.WriteAllText(SettingsFilePath, json);
         }
@@ -89,7 +86,7 @@ public class SettingsManager
             {
                 var json = File.ReadAllText(SettingsFilePath);
                 Debug.WriteLine($"[SettingsManager] Settings file contents: {json}");
-                var settings = JsonSerializer.Deserialize<ExtensionSettings>(json);
+                var settings = JsonSerializer.Deserialize<ExtensionSettings>(json, TaskNotesJsonContext.Default.ExtensionSettings);
                 return settings ?? new ExtensionSettings();
             }
 

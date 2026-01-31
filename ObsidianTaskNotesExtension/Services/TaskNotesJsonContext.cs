@@ -70,6 +70,7 @@ public class TaskIdRequest
 [JsonSerializable(typeof(DescriptionRequest))]
 [JsonSerializable(typeof(DateRequest))]
 [JsonSerializable(typeof(TaskIdRequest))]
-internal partial class TaskNotesJsonContext : JsonSerializerContext
+[JsonSerializable(typeof(ExtensionSettings))]
+internal sealed partial class TaskNotesJsonContext : JsonSerializerContext
 {
 }
