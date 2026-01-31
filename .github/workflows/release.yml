@@ -48,17 +48,19 @@ jobs:
             $projectFile = "${{ env.EXTENSION_NAME }}/${{ env.EXTENSION_NAME }}.csproj"
             $xml = [xml](Get-Content $projectFile)
             $version = $xml.Project.PropertyGroup.AppxPackageVersion | Select-Object -First 1
-            if (-not $version) { 
+            if (-not $version) {
               # Try to get version from Package.appxmanifest
               $manifest = [xml](Get-Content "${{ env.EXTENSION_NAME }}/Package.appxmanifest")
               # Convert to semver format
-              $version = $manifest.Package.Identity.Version -replace '^(\d+)\.(\d+)\.(\d+)\.(\d+)$', '$1.$2.$3'
+              $version = $manifest.Package.Identity.Version
             }
             if (-not $version) { 
-              $version = "0.0.1.0"
+              $version = "0.0.1"
               Write-Host "No version found, using default"
             }
           }
+          # Ensure we only return semver
+          $version = $version -replace '^(\d+)\.(\d+)\.(\d+)\.(\d+)$', '$1.$2.$3'
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
           Write-Host "Using version: $version"
         shell: pwsh
