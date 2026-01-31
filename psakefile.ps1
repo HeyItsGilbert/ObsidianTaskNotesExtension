@@ -6,6 +6,7 @@
 $projectPath = Join-Path $PSScriptRoot "ObsidianTaskNotesExtension"
 $solutionPath = Join-Path $PSScriptRoot "ObsidianTaskNotesExtension.sln"
 $csprojPath = Join-Path $projectPath "ObsidianTaskNotesExtension.csproj"
+$installerOutputDir = Join-Path $projectPath "bin\Release\installer"
 $buildConfiguration = "Debug"
 $runtimes = @("win-x64", "win-arm64")
 
@@ -95,7 +96,7 @@ Task PackageMsix -Depends Publish -Description "Create MSIX package" {
     & dotnet publish $csprojPath `
       --configuration Release `
       --runtime $runtime `
-      --output bin/Release/msix/$runtime `
+      --output $installerOutputDir/msix/$runtime `
       --verbosity normal
       
     if ($LASTEXITCODE -ne 0) {
@@ -311,10 +312,8 @@ Task ReleaseExe -Depends Clean, Restore, BuildDebug, Analyze, Test, BuildRelease
 Task VerifyInstallers -Description "Verify that EXE installers were created successfully" {
   Write-Host "Verifying installers..." -ForegroundColor Green
   
-  $installerDir = Join-Path $projectPath "ObsidianTaskNotesExtension\bin\Release\installer"
-  
-  $x64Installer = Get-ChildItem "$installerDir\*-x64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-  $arm64Installer = Get-ChildItem "$installerDir\*-arm64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+  $x64Installer = Get-ChildItem "$installerOutputDir\*-x64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+  $arm64Installer = Get-ChildItem "$installerOutputDir\*-arm64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
   
   $foundAny = $false
   
@@ -347,7 +346,6 @@ Task CICD -Depends ReleaseExe, VerifyInstallers -Description "Full CI/CD pipelin
   Write-Host "CI/CD Pipeline completed successfully!" -ForegroundColor Green
   Write-Host "========================================" -ForegroundColor Cyan
   
-  $installerDir = Join-Path $projectPath "ObsidianTaskNotesExtension\bin\Release\installer"
   Write-Host "`nReady for release. Installers at:" -ForegroundColor Yellow
-  Write-Host "  $installerDir" -ForegroundColor White
+  Write-Host "  $installerOutputDir" -ForegroundColor White
 }
