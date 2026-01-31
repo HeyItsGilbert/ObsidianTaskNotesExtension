@@ -9,7 +9,6 @@
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
 
-    <PublishProfile>win-$([System.String]::Copy('$(Platform)').ToLowerInvariant()).pubxml</PublishProfile>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -89,6 +88,8 @@
     <PublishTrimmed>true</PublishTrimmed>
     <!-- Only enable single file publishing when RuntimeIdentifier is specified (during publish) -->
     <PublishSingleFile Condition="'$(RuntimeIdentifier)'!=''">true</PublishSingleFile>
+    <!-- Set publish profile only when RuntimeIdentifier is specified (during publish operations) -->
+    <PublishProfile Condition="'$(RuntimeIdentifier)'!=''">win-$([System.String]::Copy('$(RuntimeIdentifier)').Replace('win-', '')).pubxml</PublishProfile>
 
     <!-- In release, also ignore the aforementioned ILLink warning -->
     <ILLinkTreatWarningsAsErrors>false</ILLinkTreatWarningsAsErrors>
