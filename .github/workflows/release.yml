@@ -1,0 +1,152 @@
+# Obsidian Task Notes Extension - Build and Release Workflow
+#
+# This workflow builds EXE installers for x64 and ARM64 and creates a GitHub Release.
+# It uses the psake build system via build.ps1.
+
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number (leave empty to auto-detect from csproj)"
+        required: false
+        type: string
+      release_notes:
+        description: "What is new in this version"
+        required: false
+        default: "New release with latest updates and improvements."
+        type: string
+      create_release:
+        description: "Create GitHub Release"
+        required: false
+        default: true
+        type: boolean
+
+env:
+  DISPLAY_NAME: "Obsidian Task Notes"
+  EXTENSION_NAME: "ObsidianTaskNotesExtension"
+  DOTNET_VERSION: "9.0.x"
+
+jobs:
+  build:
+    runs-on: windows-2022
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Get version from project
+        id: version
+        run: |
+          if ("${{ github.event.inputs.version }}" -ne "") {
+            $version = "${{ github.event.inputs.version }}"
+          } else {
+            $projectFile = "${{ env.EXTENSION_NAME }}/${{ env.EXTENSION_NAME }}.csproj"
+            $xml = [xml](Get-Content $projectFile)
+            $version = $xml.Project.PropertyGroup.AppxPackageVersion | Select-Object -First 1
+            if (-not $version) { 
+              # Try to get version from Package.appxmanifest
+              $manifest = [xml](Get-Content "${{ env.EXTENSION_NAME }}/Package.appxmanifest")
+              $version = $manifest.Package.Identity.Version
+            }
+            if (-not $version) { 
+              $version = "0.0.1.0"
+              Write-Host "No version found, using default"
+            }
+          }
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Using version: $version"
+        shell: pwsh
+
+      - name: Get Changelog Entry
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          validation_level: warn
+          version: ${{ steps.version.outputs.VERSION }}
+          path: ./CHANGELOG.md
+
+      - name: Bootstrap and build with psake
+        run: |
+          Write-Host "Bootstrapping dependencies..." -ForegroundColor Green
+          .\build.ps1 -Bootstrap -Task CICD
+        shell: pwsh
+
+      - name: Upload x64 installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.EXTENSION_NAME }}-x64-installer
+          path: ${{ env.EXTENSION_NAME }}/bin/Release/installer/*-x64.exe
+          if-no-files-found: warn
+
+      - name: Upload ARM64 installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.EXTENSION_NAME }}-arm64-installer
+          path: ${{ env.EXTENSION_NAME }}/bin/Release/installer/*-arm64.exe
+          if-no-files-found: warn
+
+      - name: Create GitHub Release
+        if: ${{ github.event.inputs.create_release == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: "${{ env.DISPLAY_NAME }} v${{ steps.version.outputs.VERSION }}"
+          body: |
+            ## 🎯 ${{ env.DISPLAY_NAME }} v${{ steps.version.outputs.VERSION }}
+
+            **Released:** ${{ steps.changelog_reader.outputs.date }}
+
+            ### What's Changed
+            ${{ steps.changelog_reader.outputs.changes }}
+
+            ---
+
+            ### 📦 Installation
+
+            Download the installer for your system architecture:
+
+            - **x64 (Intel/AMD)**: `${{ env.EXTENSION_NAME }}-Setup-${{ steps.version.outputs.VERSION }}-x64.exe`
+            - **ARM64 (Windows on ARM)**: `${{ env.EXTENSION_NAME }}-Setup-${{ steps.version.outputs.VERSION }}-arm64.exe`
+
+            #### Steps:
+            1. Ensure [PowerToys](https://github.com/microsoft/PowerToys) is installed
+            2. Download the appropriate installer from the Assets section below
+            3. Run the installer
+            4. The extension will be registered and available in Command Palette
+
+            ### 🔗 More Information
+
+            - [Repository](https://github.com/HeyItsGilbert/ObsidianTaskNotesExtension)
+            - [TaskNotes API](https://tasknotes.dev/HTTP_API/)
+
+            ### Requirements
+            - Windows 10 version 19041 or later
+            - [PowerToys](https://github.com/microsoft/PowerToys) with Command Palette enabled
+            - TaskNotes plugin installed in Obsidian
+          files: |
+            ${{ env.EXTENSION_NAME }}/bin/Release/installer/*.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build summary
+        run: |
+          Write-Host "🎉 Build completed!" -ForegroundColor Green
+          Write-Host "Version: ${{ steps.version.outputs.VERSION }}" -ForegroundColor Yellow
+          if ("${{ github.event.inputs.create_release }}" -eq "true") {
+            Write-Host "📦 GitHub Release created" -ForegroundColor Green
+          } else {
+            Write-Host "📁 Installers uploaded as artifacts (no release created)" -ForegroundColor Yellow
+          }
+        shell: pwsh

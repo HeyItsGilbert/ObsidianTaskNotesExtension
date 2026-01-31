@@ -1,0 +1,25 @@
+# Change Log
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](http://keepachangelog.com/)
+and this project adheres to [Semantic Versioning](http://semver.org/).
+
+## [0.1.0] 2026-01-30
+
+### Added
+
+- Time tracking integration for task management
+- Pomodoro timer feature with customizable intervals
+- Task statistics page
+- Tag helpers for better task organization
+- GitHub Actions workflow for building EXE installers
+- Complete task CRUD operations (Create, Read, Update, Delete)
+- Initial project setup with build scripts and documentation
+- Search and filter capabilities for tasks
+
+### Changed
+
+- Code formatting improvements for consistency
+
+## [0.0.1] Initial Release

@@ -1,0 +1,40 @@
+# Obsidian Task Notes Extension - CI Workflow
+#
+# This workflow runs on pull requests to verify code quality and build integrity.
+# It uses the psake build system via build.ps1 to run the CI pipeline.
+
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - "release/*"
+
+env:
+  DOTNET_VERSION: "9.0.x"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2022
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Bootstrap and run CI pipeline
+        run: |
+          Write-Host "Starting CI pipeline..." -ForegroundColor Green
+          .\build.ps1 -Bootstrap -Task CI
+        shell: pwsh
