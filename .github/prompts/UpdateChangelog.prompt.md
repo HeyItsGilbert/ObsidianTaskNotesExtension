@@ -10,8 +10,9 @@ project, following best practices for changelogs and semantic versioning.
 
 ## Project Structure
 
-- **Version Location:** `ObsidianTaskNotesExtension/Package.appxmanifest`
-  - Version is in the `<Identity>` element's `Version` attribute
+- **Version Locations:**
+  - `ObsidianTaskNotesExtension/Package.appxmanifest`: Version in `<Identity>` element's `Version` attribute
+  - `ObsidianTaskNotesExtension/ObsidianTaskNotesExtension.csproj`: Version in `<AppxPackageVersion>` property
   - Format: `X.Y.Z.0` (fourth octet always 0 for MSIX)
 - **Changelog:** `CHANGELOG.md` in repository root
 
@@ -21,10 +22,10 @@ project, following best practices for changelogs and semantic versioning.
 - Always read CHANGELOG.md and Package.appxmanifest in parallel (100 lines for
   changelog, 50 for manifest).
 - Use a single git log command to get all commit details:
-  `git log <baseline>..HEAD --format="%h %s%n%b"`, where <baseline> is the last
-  released commit hash from the changelog.
-- When editing, update both manifest version and CHANGELOG.md in one operation
-  (multi_replace_string_in_file).
+  `git log <baseline>..HEAD --format="%h %s%n%b"` (<baseline> = last version
+  commit hash from changelog).
+- When editing, update both manifest version, csproj version, and CHANGELOG.md in
+  one operation (multi_replace_string_in_file).
 - Validate changes by checking exit codes, not full output.
 
 
@@ -47,10 +48,9 @@ project, following best practices for changelogs and semantic versioning.
   - Use problems tool to verify CHANGELOG markdown.
 
 3. **Update files together**
-  - Use multi_replace_string_in_file to update Package.appxmanifest version and
-    changelog at once.
-  - In Package.appxmanifest, update `Version="X.Y.Z.0"` in the `<Identity>`
-    element (keep fourth octet as 0).
+  - Use multi_replace_string_in_file to update both version files and changelog at once.
+  - In `Package.appxmanifest`, update `Version="X.Y.Z.0"` in the `<Identity>` element (keep fourth octet as 0).
+  - In `.csproj`, update `<AppxPackageVersion>X.Y.Z.0</AppxPackageVersion>` property.
   - Add new `## [X.Y.Z] YYYY-MM-DD` section with categorized changes.
   - Use Keep a Changelog categories: Added, Changed, Deprecated, Removed,
     Fixed, Security.
@@ -60,7 +60,7 @@ project, following best practices for changelogs and semantic versioning.
 
 4. **Commit and create PR**
   - Stage and commit:
-    `git add CHANGELOG.md ObsidianTaskNotesExtension/Package.appxmanifest`
+    `git add CHANGELOG.md ObsidianTaskNotesExtension/Package.appxmanifest ObsidianTaskNotesExtension/ObsidianTaskNotesExtension.csproj`
     `git commit -m "chore(release): vX.Y.Z"`
   - If not on a release branch, create one: `git checkout -b release/vX.Y.Z`
   - Push and create PR via GitHub CLI:
