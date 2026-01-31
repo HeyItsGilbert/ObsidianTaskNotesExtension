@@ -73,6 +73,10 @@ public class TaskIdRequest
 [JsonSerializable(typeof(DateRequest))]
 [JsonSerializable(typeof(TaskIdRequest))]
 [JsonSerializable(typeof(ExtensionSettings))]
+[JsonSerializable(typeof(IconMappingConfig))]
+[JsonSerializable(typeof(IconPriority))]
+[JsonSerializable(typeof(IconPriority[]))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
 internal sealed partial class TaskNotesJsonContext : JsonSerializerContext
 {
 }

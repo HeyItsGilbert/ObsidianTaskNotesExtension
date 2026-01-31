@@ -18,13 +18,15 @@ namespace ObsidianTaskNotesExtension.Pages;
 internal sealed partial class AllTasksPage : DynamicListPage
 {
     private readonly TaskNotesApiClient _apiClient;
+    private readonly IconMappingService _iconMappingService;
     private List<TaskItem> _tasks = new();
     private string? _errorMessage;
     private string _searchText = string.Empty;
 
-    public AllTasksPage(TaskNotesApiClient apiClient)
+    public AllTasksPage(TaskNotesApiClient apiClient, IconMappingService iconMappingService)
     {
         _apiClient = apiClient;
+        _iconMappingService = iconMappingService;
 
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
         Title = "All Obsidian Tasks";
@@ -111,7 +113,7 @@ internal sealed partial class AllTasksPage : DynamicListPage
         {
             Title = task.Title,
             Subtitle = FormatSubtitle(task),
-            Icon = GetIcon(task),
+            Icon = _iconMappingService.ResolveIcon(task),
             Tags = TagHelpers.CreateTaskTags(task),
             Details = TagHelpers.CreateTaskDetails(task),
             MoreCommands = [
@@ -146,26 +148,6 @@ internal sealed partial class AllTasksPage : DynamicListPage
         return status;
     }
 
-    private static IconInfo GetIcon(TaskItem task)
-    {
-        if (task.Archived)
-        {
-            return new IconInfo("\uE7B8"); // Archive icon
-        }
-
-        if (task.Completed)
-        {
-            return new IconInfo("\uE73E"); // Checkmark
-        }
-
-        if (task.IsOverdue)
-        {
-            return new IconInfo("\uE7BA"); // Warning
-        }
-
-        return new IconInfo("\uE73A"); // Default checkbox
-    }
-
     private static int GetPrioritySortOrder(string? priority)
     {
         var p = priority?.ToLowerInvariant() ?? "";
@@ -185,7 +167,7 @@ internal sealed partial class AllTasksPage : DynamicListPage
         // Set loading state immediately and notify UI to show spinner
         IsLoading = true;
         RaiseItemsChanged();
-        
+
         // Then start the async fetch
         FetchTasksAsync();
     }

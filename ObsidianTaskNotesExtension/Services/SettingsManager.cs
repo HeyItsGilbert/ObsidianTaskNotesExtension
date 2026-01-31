@@ -6,6 +6,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using ObsidianTaskNotesExtension.Models;
 
 namespace ObsidianTaskNotesExtension.Services;
 
@@ -14,6 +15,7 @@ public class ExtensionSettings
     public string ApiBaseUrl { get; set; } = "http://localhost:8080";
     public string AuthToken { get; set; } = string.Empty;
     public string VaultName { get; set; } = string.Empty;
+    public IconMappingConfig IconMappings { get; set; } = new();
 }
 
 public class SettingsManager
@@ -36,8 +38,74 @@ public class SettingsManager
     public string ApiBaseUrl => _settings.ApiBaseUrl;
     public string AuthToken => _settings.AuthToken;
     public string VaultName => _settings.VaultName;
+    public IconMappingConfig IconMappings => _settings.IconMappings;
 
     public ExtensionSettings GetSettings() => _settings;
+
+    /// <summary>
+    /// Updates the icon mapping configuration.
+    /// </summary>
+    public void UpdateIconMappings(IconMappingConfig iconMappings)
+    {
+        _settings.IconMappings = iconMappings;
+        SaveSettings(_settings);
+    }
+
+    /// <summary>
+    /// Exports icon mappings to a JSON file.
+    /// </summary>
+    /// <param name="filePath">Path to export the mappings to.</param>
+    /// <returns>True if export succeeded, false otherwise.</returns>
+    public bool ExportIconMappings(string filePath)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(_settings.IconMappings, TaskNotesJsonContext.Default.IconMappingConfig);
+            File.WriteAllText(filePath, json);
+            Debug.WriteLine($"[SettingsManager] Exported icon mappings to: {filePath}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[SettingsManager] Failed to export icon mappings: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Imports icon mappings from a JSON file.
+    /// </summary>
+    /// <param name="filePath">Path to import the mappings from.</param>
+    /// <returns>True if import succeeded, false otherwise.</returns>
+    public bool ImportIconMappings(string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+            {
+                Debug.WriteLine($"[SettingsManager] Import file not found: {filePath}");
+                return false;
+            }
+
+            var json = File.ReadAllText(filePath);
+            var iconMappings = JsonSerializer.Deserialize(json, TaskNotesJsonContext.Default.IconMappingConfig);
+
+            if (iconMappings != null)
+            {
+                _settings.IconMappings = iconMappings;
+                SaveSettings(_settings);
+                Debug.WriteLine($"[SettingsManager] Imported icon mappings from: {filePath}");
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[SettingsManager] Failed to import icon mappings: {ex.Message}");
+            return false;
+        }
+    }
 
     public void SaveSettings(ExtensionSettings settings)
     {

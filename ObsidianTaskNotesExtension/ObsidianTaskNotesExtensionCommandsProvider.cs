@@ -14,6 +14,7 @@ public partial class ObsidianTaskNotesExtensionCommandsProvider : CommandProvide
     private readonly ICommandItem[] _commands;
     private readonly SettingsManager _settingsManager;
     private readonly TaskNotesApiClient _apiClient;
+    private readonly IconMappingService _iconMappingService;
 
     public ObsidianTaskNotesExtensionCommandsProvider()
     {
@@ -23,15 +24,16 @@ public partial class ObsidianTaskNotesExtensionCommandsProvider : CommandProvide
         // Initialize shared services
         _settingsManager = new SettingsManager();
         _apiClient = new TaskNotesApiClient(_settingsManager);
+        _iconMappingService = new IconMappingService(_settingsManager.IconMappings);
 
         // Create pages
-        var tasksPage = new ObsidianTaskNotesExtensionPage(_apiClient);
-        var allTasksPage = new AllTasksPage(_apiClient);
+        var tasksPage = new ObsidianTaskNotesExtensionPage(_apiClient, _iconMappingService);
+        var allTasksPage = new AllTasksPage(_apiClient, _iconMappingService);
         var createTaskPage = new CreateTaskPage(_apiClient);
         var statsPage = new StatsPage(_apiClient);
         var pomodoroPage = new PomodoroPage(_apiClient);
         var timeTrackingPage = new TimeTrackingPage(_apiClient);
-        var settingsPage = new SettingsPage(_settingsManager, _apiClient);
+        var settingsPage = new SettingsPage(_settingsManager, _apiClient, _iconMappingService);
 
         _commands =
         [

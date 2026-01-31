@@ -18,13 +18,15 @@ namespace ObsidianTaskNotesExtension.Pages;
 internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
 {
     private readonly TaskNotesApiClient _apiClient;
+    private readonly IconMappingService _iconMappingService;
     private List<TaskItem> _tasks = new();
     private string? _errorMessage;
     private string _searchText = string.Empty;
 
-    public ObsidianTaskNotesExtensionPage(TaskNotesApiClient apiClient)
+    public ObsidianTaskNotesExtensionPage(TaskNotesApiClient apiClient, IconMappingService iconMappingService)
     {
         _apiClient = apiClient;
+        _iconMappingService = iconMappingService;
 
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
         Title = "Obsidian Task Notes";
@@ -114,7 +116,7 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
         {
             Title = task.Title,
             Subtitle = FormatDueDate(task),
-            Icon = GetPriorityIcon(task),
+            Icon = _iconMappingService.ResolveIcon(task),
             Tags = TagHelpers.CreateTaskTags(task),
             Details = TagHelpers.CreateTaskDetails(task),
             MoreCommands = [
@@ -174,31 +176,6 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
         return $"Due: {due:MMM d}";
     }
 
-    private static IconInfo GetPriorityIcon(TaskItem task)
-    {
-        if (task.Completed)
-        {
-            return new IconInfo("\uE73E"); // Checkmark icon for completed
-        }
-
-        if (task.IsOverdue)
-        {
-            return new IconInfo("\uE7BA"); // Warning icon for overdue
-        }
-
-        var priority = task.Priority?.ToLowerInvariant() ?? "";
-
-        return priority switch
-        {
-            "1-urgent" or "urgent" or "1" => new IconInfo("\uE91B"), // Red circle
-            "2-high" or "high" or "2" => new IconInfo("\uE91B"),     // Orange/yellow
-            "3-medium" or "medium" or "3" => new IconInfo("\uE91B"), // Green
-            "4-normal" or "normal" or "4" => new IconInfo("\uE91B"), // Blue
-            "5-low" or "low" or "5" => new IconInfo("\uE91B"),       // Gray
-            _ => new IconInfo("\uE73A")                               // Default checkbox
-        };
-    }
-
     private static int GetPrioritySortOrder(string? priority)
     {
         var p = priority?.ToLowerInvariant() ?? "";
@@ -219,7 +196,7 @@ internal sealed partial class ObsidianTaskNotesExtensionPage : DynamicListPage
         // Set loading state immediately and notify UI to show spinner
         IsLoading = true;
         RaiseItemsChanged();
-        
+
         // Then start the async fetch
         FetchTasksAsync();
     }
