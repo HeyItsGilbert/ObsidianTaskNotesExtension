@@ -198,3 +198,164 @@ Task Watch -Description "Watch for changes and rebuild (Debug)" {
     Pop-Location
   }
 }
+
+# Build EXE Installer using Inno Setup
+Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for WinGet distribution" {
+  param(
+    [string]$Version
+  )
+
+  Write-Host "Building EXE installers..." -ForegroundColor Green
+  
+  # Get version from csproj if not provided
+  if (-not $Version) {
+    $xml = [xml](Get-Content $csprojPath)
+    $Version = $xml.Project.PropertyGroup.AppxPackageVersion | Select-Object -First 1
+    if (-not $Version) {
+      $Version = "0.0.1.0"
+      Write-Host "No version found in csproj, using default: $Version" -ForegroundColor Yellow
+    }
+  }
+  Write-Host "Version: $Version" -ForegroundColor Yellow
+
+  $innerProjectDir = Join-Path $projectPath "ObsidianTaskNotesExtension"
+  $setupTemplate = Join-Path $innerProjectDir "setup-template.iss"
+  $installerOutputDir = Join-Path $innerProjectDir "bin\Release\installer"
+
+  # Verify Inno Setup is installed
+  $InnoSetupPath = "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe"
+  if (-not (Test-Path $InnoSetupPath)) {
+    $InnoSetupPath = "${env:ProgramFiles}\Inno Setup 6\iscc.exe"
+  }
+  if (-not (Test-Path $InnoSetupPath)) {
+    throw "Inno Setup 6 not found. Install from https://jrsoftware.org/isdl.php"
+  }
+
+  # Verify setup template exists
+  if (-not (Test-Path $setupTemplate)) {
+    throw "Setup template not found at: $setupTemplate"
+  }
+
+  # Create installer output directory
+  if (-not (Test-Path $installerOutputDir)) {
+    New-Item -ItemType Directory -Path $installerOutputDir -Force | Out-Null
+  }
+
+  $platforms = @("x64", "arm64")
+  
+  foreach ($platform in $platforms) {
+    Write-Host "`n=== Building $platform installer ===" -ForegroundColor Cyan
+    
+    $publishDir = Join-Path $innerProjectDir "bin\Release\net9.0-windows10.0.26100.0\win-$platform\publish"
+    
+    # Verify publish directory exists
+    if (-not (Test-Path $publishDir)) {
+      Write-Warning "Publish directory not found for $platform at: $publishDir"
+      Write-Warning "Run 'Publish' task first"
+      continue
+    }
+
+    # Read and customize setup script
+    $setupScript = Get-Content $setupTemplate -Raw
+    
+    # Update version
+    $setupScript = $setupScript -replace '#define AppVersion ".*"', "#define AppVersion `"$Version`""
+    
+    # Update output filename to include platform
+    $setupScript = $setupScript -replace 'OutputBaseFilename=(.*?)\{#AppVersion\}', "OutputBaseFilename=`$1{#AppVersion}-$platform"
+    
+    # Update source path for the platform
+    $setupScript = $setupScript -replace 'Source: "bin\\Release\\net9.0-windows10.0.26100.0\\win-x64\\publish', "Source: `"bin\Release\net9.0-windows10.0.26100.0\win-$platform\publish"
+    
+    # Add architecture settings
+    if ($platform -eq "arm64") {
+      $setupScript = $setupScript -replace '(\[Setup\][^\[]*)(MinVersion=)', "`$1ArchitecturesAllowed=arm64`r`nArchitecturesInstallIn64BitMode=arm64`r`n`$2"
+    } else {
+      $setupScript = $setupScript -replace '(\[Setup\][^\[]*)(MinVersion=)', "`$1ArchitecturesAllowed=x64compatible`r`nArchitecturesInstallIn64BitMode=x64compatible`r`n`$2"
+    }
+    
+    # Write platform-specific setup script
+    $platformSetupPath = Join-Path $innerProjectDir "setup-$platform.iss"
+    $setupScript | Out-File -FilePath $platformSetupPath -Encoding UTF8
+    
+    # Build installer
+    Write-Host "Creating $platform installer with Inno Setup..." -ForegroundColor Yellow
+    Push-Location $innerProjectDir
+    & $InnoSetupPath $platformSetupPath
+    
+    if ($LASTEXITCODE -eq 0) {
+      $installer = Get-ChildItem "$installerOutputDir\*-$platform.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+      if ($installer) {
+        $sizeMB = [math]::Round($installer.Length / 1MB, 2)
+        Write-Host "Created $platform installer: $($installer.Name) ($sizeMB MB)" -ForegroundColor Green
+      }
+    } else {
+      Write-Warning "Inno Setup failed for $platform with exit code: $LASTEXITCODE"
+    }
+    Pop-Location
+    
+    # Clean up platform-specific setup script
+    Remove-Item $platformSetupPath -ErrorAction SilentlyContinue
+  }
+  
+  Write-Host "`nEXE installer build completed!" -ForegroundColor Green
+  Write-Host "Installers available in: $installerOutputDir" -ForegroundColor Cyan
+}
+
+# Full release with EXE installers for GitHub/WinGet
+Task ReleaseExe -Depends Clean, Restore, BuildRelease, Analyze, Test, Publish, BuildExeInstaller -Description "Create Release build with EXE installers" {
+  Write-Host "Release with EXE installers completed successfully!" -ForegroundColor Green
+  
+  $installerDir = Join-Path $projectPath "ObsidianTaskNotesExtension\bin\Release\installer"
+  if (Test-Path $installerDir) {
+    Write-Host "Installers available in: $installerDir" -ForegroundColor Cyan
+    Get-ChildItem $installerDir -Filter "*.exe" | ForEach-Object {
+      Write-Host "  - $($_.Name)" -ForegroundColor White
+    }
+  }
+}
+
+# Verify installers were created
+Task VerifyInstallers -Description "Verify that EXE installers were created successfully" {
+  Write-Host "Verifying installers..." -ForegroundColor Green
+  
+  $installerDir = Join-Path $projectPath "ObsidianTaskNotesExtension\bin\Release\installer"
+  
+  $x64Installer = Get-ChildItem "$installerDir\*-x64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+  $arm64Installer = Get-ChildItem "$installerDir\*-arm64.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+  
+  $foundAny = $false
+  
+  if ($x64Installer) {
+    $sizeMB = [math]::Round($x64Installer.Length / 1MB, 2)
+    Write-Host "✓ Found x64 installer: $($x64Installer.Name) ($sizeMB MB)" -ForegroundColor Green
+    $foundAny = $true
+  } else {
+    Write-Warning "✗ x64 installer not found"
+  }
+  
+  if ($arm64Installer) {
+    $sizeMB = [math]::Round($arm64Installer.Length / 1MB, 2)
+    Write-Host "✓ Found ARM64 installer: $($arm64Installer.Name) ($sizeMB MB)" -ForegroundColor Green
+    $foundAny = $true
+  } else {
+    Write-Warning "✗ ARM64 installer not found"
+  }
+  
+  if (-not $foundAny) {
+    throw "No installers were created! Check the BuildExeInstaller task output for errors."
+  }
+  
+  Write-Host "`nInstaller verification completed!" -ForegroundColor Green
+}
+
+# CI/CD task - Full release pipeline with verification
+Task CICD -Depends ReleaseExe, VerifyInstallers -Description "Full CI/CD pipeline: build, package, and verify installers" {
+  Write-Host "`n========================================" -ForegroundColor Cyan
+  Write-Host "CI/CD Pipeline completed successfully!" -ForegroundColor Green
+  Write-Host "========================================" -ForegroundColor Cyan
+  
+  $installerDir = Join-Path $projectPath "ObsidianTaskNotesExtension\bin\Release\installer"
+  Write-Host "`nReady for release. Installers at:" -ForegroundColor Yellow
+  Write-Host "  $installerDir" -ForegroundColor White
+}

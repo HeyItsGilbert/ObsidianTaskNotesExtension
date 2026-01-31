@@ -1,0 +1,27 @@
+{
+    "version": "0.2",
+    "ignorePaths": [
+        "ObsidianTaskNotesExtension/setup-template.iss"
+    ],
+    "dictionaryDefinitions": [],
+    "dictionaries": [
+        "dotnet"
+    ],
+    "words": [],
+    "ignoreWords": [
+        "Pomodoro",
+        "psake",
+        "psakefile",
+        "msix",
+        "freepik",
+        "flaticon",
+        "softprops",
+        "inno",
+        "choco",
+        "innosetup",
+        "CICD",
+        "mindsers",
+        "iscc"
+    ],
+    "import": []
+}
