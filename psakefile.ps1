@@ -5,7 +5,7 @@
 # Task configuration
 $projectPath = Join-Path $PSScriptRoot "ObsidianTaskNotesExtension"
 $solutionPath = Join-Path $PSScriptRoot "ObsidianTaskNotesExtension.sln"
-$csprojPath = Join-Path $projectPath "ObsidianTaskNotesExtension" "ObsidianTaskNotesExtension.csproj"
+$csprojPath = Join-Path $projectPath "ObsidianTaskNotesExtension.csproj"
 $buildConfiguration = "Debug"
 $runtimes = @("win-x64", "win-arm64")
 
