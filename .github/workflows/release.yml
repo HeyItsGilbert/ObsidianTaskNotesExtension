@@ -63,6 +63,56 @@ jobs:
           Write-Host "Using version: $version"
         shell: pwsh
 
+      - name: Validate version consistency
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          Write-Host "Validating version consistency for: $version" -ForegroundColor Cyan
+
+          # Extract versions from all sources
+          $csprojFile = "${{ env.EXTENSION_NAME }}/${{ env.EXTENSION_NAME }}.csproj"
+          $csprojXml = [xml](Get-Content $csprojFile)
+          $csprojVersion = $csprojXml.Project.PropertyGroup.AppxPackageVersion | Select-Object -First 1
+
+          $manifestFile = "${{ env.EXTENSION_NAME }}/Package.appxmanifest"
+          $manifestXml = [xml](Get-Content $manifestFile)
+          $manifestVersion = $manifestXml.Package.Identity.Version
+
+          $changelogContent = Get-Content CHANGELOG.md -Raw
+          $changelogHasVersion = $changelogContent -match "\[\s*$([regex]::Escape($version))\s*\]"
+
+          $errors = @()
+
+          # Validate csproj version
+          if ($csprojVersion -ne "$version.0") {
+            $errors += "❌ csproj version mismatch: expected '$version.0', got '$csprojVersion'"
+          } else {
+            Write-Host "✅ csproj version matches: $csprojVersion"
+          }
+
+          # Validate manifest version
+          if ($manifestVersion -ne "$version.0") {
+            $errors += "❌ manifest version mismatch: expected '$version.0', got '$manifestVersion'"
+          } else {
+            Write-Host "✅ manifest version matches: $manifestVersion"
+          }
+
+          # Validate changelog entry
+          if (-not $changelogHasVersion) {
+            $errors += "❌ CHANGELOG.md missing entry for version [$version]"
+          } else {
+            Write-Host "✅ CHANGELOG.md contains version [$version]"
+          }
+
+          if ($errors.Count -gt 0) {
+            foreach ($error in $errors) {
+              Write-Host $error -ForegroundColor Red
+            }
+            throw "Version validation failed"
+          }
+
+          Write-Host "✅ All versions are consistent!" -ForegroundColor Green
+        shell: pwsh
+
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2
