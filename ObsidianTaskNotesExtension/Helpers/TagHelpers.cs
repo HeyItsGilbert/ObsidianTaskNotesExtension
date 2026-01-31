@@ -229,7 +229,7 @@ internal static class TagHelpers
     {
       return new Tag("Done Today")
       {
-        Icon = new IconInfo("\uE73E"), // Checkmark icon
+        Icon = new IconInfo("\uE73E"), // Check mark icon
         Background = Colors.CompletedBg,
         Foreground = Colors.LightText
       };

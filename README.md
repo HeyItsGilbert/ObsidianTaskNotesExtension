@@ -109,7 +109,7 @@ After installation, open the extension settings in PowerToys to configure:
 
 ## Project Structure
 
-```
+```md
 ObsidianTaskNotesExtension/
 ├── Commands/       # Command implementations (toggle, archive, delete, etc.)
 ├── Helpers/        # Tag and UI helper utilities

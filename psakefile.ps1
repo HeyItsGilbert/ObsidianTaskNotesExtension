@@ -1,5 +1,6 @@
 # Obsidian Task Notes Extension - PSake Build File
 # This file defines build, test, and deployment tasks using psake
+# spell-checker:ignore LASTEXITCODE csproj msix
 
 # Task configuration
 $projectPath = Join-Path $PSScriptRoot "ObsidianTaskNotesExtension"

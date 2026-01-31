@@ -16,11 +16,10 @@ using ObsidianTaskNotesExtension.Models;
 
 namespace ObsidianTaskNotesExtension.Services;
 
-public class TaskNotesApiClient : IDisposable
+public partial class TaskNotesApiClient : IDisposable
 {
     private readonly SettingsManager _settings;
     private readonly HttpClient _httpClient;
-    private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     public TaskNotesApiClient(SettingsManager settings)
     {
@@ -29,12 +28,12 @@ public class TaskNotesApiClient : IDisposable
         _httpClient.Timeout = TimeSpan.FromSeconds(10);
     }
 
-    private T? DeserializeResponse<T>(string body, string caller)
+    private static TResponse? DeserializeResponse<TResponse>(string body, string caller, System.Text.Json.Serialization.Metadata.JsonTypeInfo<TResponse> typeInfo)
     {
         Debug.WriteLine($"[TaskNotesApi] {caller} - Response preview: {body[..Math.Min(500, body.Length)]}");
         try
         {
-            var result = JsonSerializer.Deserialize<T>(body, _jsonOptions);
+            var result = JsonSerializer.Deserialize(body, typeInfo);
             Debug.WriteLine($"[TaskNotesApi] {caller} - Deserialized successfully");
             return result;
         }
@@ -113,10 +112,7 @@ public class TaskNotesApiClient : IDisposable
             Debug.WriteLine($"[TaskNotesApi] GetActiveTasks - Response length: {json.Length} chars");
             Debug.WriteLine($"[TaskNotesApi] GetActiveTasks - Response preview: {json[..Math.Min(500, json.Length)]}");
 
-            var apiResponse = JsonSerializer.Deserialize<ApiResponse>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            var apiResponse = JsonSerializer.Deserialize(json, TaskNotesJsonContext.Default.ApiResponse);
 
             var tasks = apiResponse?.Data?.Tasks;
 
@@ -163,10 +159,7 @@ public class TaskNotesApiClient : IDisposable
             }
 
             var json = await response.Content.ReadAsStringAsync();
-            var apiResponse = JsonSerializer.Deserialize<ApiResponse>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            var apiResponse = JsonSerializer.Deserialize(json, TaskNotesJsonContext.Default.ApiResponse);
 
             var tasks = apiResponse?.Data?.Tasks;
             Debug.WriteLine($"[TaskNotesApi] GetAllTasks - Total: {tasks?.Count ?? 0}");
@@ -225,7 +218,7 @@ public class TaskNotesApiClient : IDisposable
         {
             ConfigureAuthHeader();
             var url = $"{_settings.ApiBaseUrl}/api/tasks";
-            var json = JsonSerializer.Serialize(request);
+            var json = JsonSerializer.Serialize(request, TaskNotesJsonContext.Default.CreateTaskRequest);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             Debug.WriteLine($"[TaskNotesApi] CreateTask - URL: {url}");
             var response = await _httpClient.PostAsync(url, content);
@@ -234,7 +227,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return null;
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<SingleTaskResponse>(body, "CreateTask");
+            var result = DeserializeResponse(body, "CreateTask", TaskNotesJsonContext.Default.SingleTaskResponse);
             return result?.Data;
         }
         catch (Exception ex)
@@ -257,7 +250,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return null;
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<SingleTaskResponse>(body, "GetTask");
+            var result = DeserializeResponse(body, "GetTask", TaskNotesJsonContext.Default.SingleTaskResponse);
             return result?.Data;
         }
         catch (Exception ex)
@@ -274,7 +267,7 @@ public class TaskNotesApiClient : IDisposable
             ConfigureAuthHeader();
             var encodedId = HttpUtility.UrlEncode(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}";
-            var json = JsonSerializer.Serialize(request);
+            var json = JsonSerializer.Serialize(request, TaskNotesJsonContext.Default.UpdateTaskRequest);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             Debug.WriteLine($"[TaskNotesApi] UpdateTask - URL: {url}");
             var response = await _httpClient.PutAsync(url, content);
@@ -282,7 +275,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return null;
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<SingleTaskResponse>(body, "UpdateTask");
+            var result = DeserializeResponse(body, "UpdateTask", TaskNotesJsonContext.Default.SingleTaskResponse);
             return result?.Data;
         }
         catch (Exception ex)
@@ -337,7 +330,7 @@ public class TaskNotesApiClient : IDisposable
             ConfigureAuthHeader();
             var encodedId = HttpUtility.UrlEncode(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}/time/start-with-description";
-            var json = JsonSerializer.Serialize(new { description });
+            var json = JsonSerializer.Serialize(new DescriptionRequest { Description = description }, TaskNotesJsonContext.Default.DescriptionRequest);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             Debug.WriteLine($"[TaskNotesApi] StartTimeTrackingWithDescription - URL: {url}");
             var response = await _httpClient.PostAsync(url, content);
@@ -381,7 +374,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return null;
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<TaskTimeResponse>(body, "GetTaskTime");
+            var result = DeserializeResponse(body, "GetTaskTime", TaskNotesJsonContext.Default.TaskTimeResponse);
             return result?.Data;
         }
         catch (Exception ex)
@@ -403,7 +396,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return new List<ActiveSession>();
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<ActiveSessionsResponse>(body, "GetActiveTimeSessions");
+            var result = DeserializeResponse(body, "GetActiveTimeSessions", TaskNotesJsonContext.Default.ActiveSessionsResponse);
             return result?.Data ?? new List<ActiveSession>();
         }
         catch (Exception ex)
@@ -430,7 +423,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return null;
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<TimeSummaryResponse>(body, "GetTimeSummary");
+            var result = DeserializeResponse(body, "GetTimeSummary", TaskNotesJsonContext.Default.TimeSummaryResponse);
             return result?.Data;
         }
         catch (Exception ex)
@@ -449,7 +442,7 @@ public class TaskNotesApiClient : IDisposable
             ConfigureAuthHeader();
             var encodedId = HttpUtility.UrlEncode(taskId);
             var url = $"{_settings.ApiBaseUrl}/api/tasks/{encodedId}/complete-instance";
-            var json = JsonSerializer.Serialize(new { date });
+            var json = JsonSerializer.Serialize(new DateRequest { Date = date }, TaskNotesJsonContext.Default.DateRequest);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             Debug.WriteLine($"[TaskNotesApi] CompleteRecurringInstance - URL: {url}");
             var response = await _httpClient.PostAsync(url, content);
@@ -470,7 +463,7 @@ public class TaskNotesApiClient : IDisposable
         {
             ConfigureAuthHeader();
             var url = $"{_settings.ApiBaseUrl}/api/tasks/query";
-            var json = JsonSerializer.Serialize(filter);
+            var json = JsonSerializer.Serialize(filter, TaskNotesJsonContext.Default.TaskQueryFilter);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             Debug.WriteLine($"[TaskNotesApi] QueryTasks - URL: {url}");
             var response = await _httpClient.PostAsync(url, content);
@@ -478,7 +471,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return new List<TaskItem>();
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<ApiResponse>(body, "QueryTasks");
+            var result = DeserializeResponse(body, "QueryTasks", TaskNotesJsonContext.Default.ApiResponse);
             return result?.Data?.Tasks ?? new List<TaskItem>();
         }
         catch (Exception ex)
@@ -500,7 +493,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return null;
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<FilterOptionsResponse>(body, "GetFilterOptions");
+            var result = DeserializeResponse(body, "GetFilterOptions", TaskNotesJsonContext.Default.FilterOptionsResponse);
             return result?.Data;
         }
         catch (Exception ex)
@@ -524,7 +517,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return null;
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<TaskStatsResponse>(body, "GetStats");
+            var result = DeserializeResponse(body, "GetStats", TaskNotesJsonContext.Default.TaskStatsResponse);
             return result?.Data;
         }
         catch (Exception ex)
@@ -551,7 +544,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return null;
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<TimeStatsResponse>(body, "GetTimeStats");
+            var result = DeserializeResponse(body, "GetTimeStats", TaskNotesJsonContext.Default.TimeStatsResponse);
             return result?.Data;
         }
         catch (Exception ex)
@@ -572,7 +565,7 @@ public class TaskNotesApiClient : IDisposable
             StringContent? content = null;
             if (!string.IsNullOrEmpty(taskId))
             {
-                var json = JsonSerializer.Serialize(new { taskId });
+                var json = JsonSerializer.Serialize(new TaskIdRequest { TaskId = taskId }, TaskNotesJsonContext.Default.TaskIdRequest);
                 content = new StringContent(json, Encoding.UTF8, "application/json");
             }
             Debug.WriteLine($"[TaskNotesApi] StartPomodoro - URL: {url}");
@@ -581,7 +574,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return null;
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<PomodoroActionResponse>(body, "StartPomodoro");
+            var result = DeserializeResponse(body, "StartPomodoro", TaskNotesJsonContext.Default.PomodoroActionResponse);
             return result?.Data;
         }
         catch (Exception ex)
@@ -654,7 +647,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return null;
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<PomodoroStatusResponse>(body, "GetPomodoroStatus");
+            var result = DeserializeResponse(body, "GetPomodoroStatus", TaskNotesJsonContext.Default.PomodoroStatusResponse);
             return result?.Data;
         }
         catch (Exception ex)
@@ -680,7 +673,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return new List<PomodoroSession>();
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<PomodoroSessionsResponse>(body, "GetPomodoroSessions");
+            var result = DeserializeResponse(body, "GetPomodoroSessions", TaskNotesJsonContext.Default.PomodoroSessionsResponse);
             return result?.Data ?? new List<PomodoroSession>();
         }
         catch (Exception ex)
@@ -703,7 +696,7 @@ public class TaskNotesApiClient : IDisposable
             if (!response.IsSuccessStatusCode) return null;
 
             var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse<PomodoroStatsResponse>(body, "GetPomodoroStats");
+            var result = DeserializeResponse(body, "GetPomodoroStats", TaskNotesJsonContext.Default.PomodoroStatsResponse);
             return result?.Data;
         }
         catch (Exception ex)

@@ -1,4 +1,4 @@
-[cmdletbinding(DefaultParameterSetName = 'Task')]
+[CmdletBinding(DefaultParameterSetName = 'Task')]
 param(
   # Build task(s) to execute
   [parameter(ParameterSetName = 'task', position = 0)]
@@ -41,6 +41,6 @@ if ($PSCmdlet.ParameterSetName -eq 'Help') {
   Get-PSakeScriptTasks -BuildFile $psakeFile |
     Format-Table -Property Name, Description, Alias, DependsOn
 } else {
-  Invoke-psake -buildFile $psakeFile -taskList $Task -nologo -properties $Properties -parameters $Parameters
+  Invoke-psake -BuildFile $psakeFile -TaskList $Task -NoLogo -Properties $Properties -Parameters $Parameters
   exit ([int](-not $psake.build_success))
 }

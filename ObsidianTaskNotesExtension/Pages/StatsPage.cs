@@ -103,7 +103,7 @@ internal sealed partial class StatsPage : DynamicListPage
                 Icon = new IconInfo("\uE7BA"),
                 Tags = [new Tag($"{_taskStats.Overdue}")
                 {
-                    Icon = _taskStats.Overdue > 0 ? new IconInfo("\uE7BA") : null,
+                    Icon = _taskStats.Overdue > 0 ? new IconInfo("\uE7BA") : new IconInfo("\uE7E6"), // Warning/alert icon
                     Background = overdueColor,
                     Foreground = ColorHelpers.FromRgb(255, 255, 255),
                     ToolTip = $"{_taskStats.Overdue} overdue tasks"
