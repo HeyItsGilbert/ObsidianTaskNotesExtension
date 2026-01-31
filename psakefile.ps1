@@ -106,13 +106,17 @@ Task PackageMsix -Depends Publish -Description "Create MSIX package" {
   Write-Host "Creating MSIX package..." -ForegroundColor Green
     
   Push-Location $PSScriptRoot
-  & dotnet publish $csprojPath `
-    --configuration Release `
-    --output bin/Release/msix `
-    --verbosity normal
-    
-  if ($LASTEXITCODE -ne 0) {
-    throw "MSIX packaging failed with exit code $LASTEXITCODE"
+  foreach ($runtime in $runtimes) {
+    Write-Host "Creating MSIX package for runtime: $runtime" -ForegroundColor Yellow
+    & dotnet publish $csprojPath `
+      --configuration Release `
+      --runtime $runtime `
+      --output bin/Release/msix/$runtime `
+      --verbosity normal
+      
+    if ($LASTEXITCODE -ne 0) {
+      throw "MSIX packaging failed for runtime '$runtime' with exit code $LASTEXITCODE"
+    }
   }
   Pop-Location
     
