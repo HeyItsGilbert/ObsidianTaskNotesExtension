@@ -156,7 +156,7 @@ Task CI -Depends Clean, Restore, BuildDebug, Analyze, Test -Description "Run ful
 }
 
 # Full build and publish pipeline
-Task Release -Depends Clean, Restore, BuildRelease, Analyze, Test, Publish, PackageMsix -Description "Create Release build and package" {
+Task Release -Depends Clean, Restore, BuildDebug, Analyze, Test, BuildRelease, Publish, PackageMsix -Description "Create Release build and package" {
   Write-Host "Release pipeline completed successfully!" -ForegroundColor Green
   Write-Host "Outputs available in: bin/Release" -ForegroundColor Cyan
 }
@@ -291,7 +291,7 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
 }
 
 # Full release with EXE installers for GitHub/WinGet
-Task ReleaseExe -Depends Clean, Restore, BuildRelease, Analyze, Test, Publish, BuildExeInstaller -Description "Create Release build with EXE installers" {
+Task ReleaseExe -Depends Clean, Restore, BuildDebug, Analyze, Test, BuildRelease, Publish, BuildExeInstaller -Description "Create Release build with EXE installers" {
   Write-Host "Release with EXE installers completed successfully!" -ForegroundColor Green
   
   $installerDir = Join-Path $projectPath "ObsidianTaskNotesExtension\bin\Release\installer"
@@ -337,8 +337,8 @@ Task VerifyInstallers -Description "Verify that EXE installers were created succ
   Write-Host "`nInstaller verification completed!" -ForegroundColor Green
 }
 
-# CI/CD task - Full release pipeline with verification
-Task CICD -Depends Clean, Restore, BuildRelease, Analyze, Test, Publish, VerifyInstallers -Description "Full CI/CD pipeline: build, test, analyze, package, and verify installers" {
+# CI/CD task - alias for ReleaseExe with installer verification
+Task CICD -Depends ReleaseExe, VerifyInstallers -Description "Full CI/CD pipeline: equivalent to ReleaseExe with installer verification" {
   Write-Host "`n========================================" -ForegroundColor Cyan
   Write-Host "CI/CD Pipeline completed successfully!" -ForegroundColor Green
   Write-Host "========================================" -ForegroundColor Cyan
