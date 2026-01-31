@@ -260,6 +260,10 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
     } else {
       $setupScript = $setupScript -replace '(\[Setup\][^\[]*)(MinVersion=)', "`$1ArchitecturesAllowed=x64compatible`r`nArchitecturesInstallIn64BitMode=x64compatible`r`n`$2"
     }
+
+    #Update the License file with a resolved path
+    $licensePath = Join-Path $projectPath "LICENSE.txt"
+    $setupScript = $setupScript -replace 'LicenseFile=..\..\LICENSE.txt', "LicenseFile=`"$licensePath`""
     
     # Write platform-specific setup script
     $platformSetupPath = Join-Path $projectPath "setup-$platform.iss"
