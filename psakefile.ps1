@@ -263,7 +263,7 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
 
     #Update the License file with a resolved path
     $licensePath = Join-Path $projectPath "LICENSE.txt"
-    $setupScript = $setupScript -replace 'LicenseFile=..\..\LICENSE.txt', "LicenseFile=`"$licensePath`""
+    $setupScript = $setupScript -replace 'LicenseFile=LICENSE.txt', "LicenseFile=`"$licensePath`""
     
     # Write platform-specific setup script
     $platformSetupPath = Join-Path $projectPath "setup-$platform.iss"
