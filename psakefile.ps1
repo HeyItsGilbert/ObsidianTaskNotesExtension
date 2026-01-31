@@ -338,7 +338,7 @@ Task VerifyInstallers -Description "Verify that EXE installers were created succ
 }
 
 # CI/CD task - Full release pipeline with verification
-Task CICD -Depends ReleaseExe, VerifyInstallers -Description "Full CI/CD pipeline: build, package, and verify installers" {
+Task CICD -Depends Clean, Restore, BuildRelease, Analyze, Test, Publish, VerifyInstallers -Description "Full CI/CD pipeline: build, test, analyze, package, and verify installers" {
   Write-Host "`n========================================" -ForegroundColor Cyan
   Write-Host "CI/CD Pipeline completed successfully!" -ForegroundColor Green
   Write-Host "========================================" -ForegroundColor Cyan
