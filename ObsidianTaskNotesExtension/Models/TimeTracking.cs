@@ -139,13 +139,25 @@ public class TimeSummaryTagEntry
     public double Minutes { get; set; }
 }
 
+public class ActiveSessionsData
+{
+    [JsonPropertyName("activeSessions")]
+    public List<ActiveSession>? ActiveSessions { get; set; }
+
+    [JsonPropertyName("totalActiveSessions")]
+    public int TotalActiveSessions { get; set; }
+
+    [JsonPropertyName("totalElapsedMinutes")]
+    public int TotalElapsedMinutes { get; set; }
+}
+
 public class ActiveSessionsResponse
 {
     [JsonPropertyName("success")]
     public bool Success { get; set; }
 
     [JsonPropertyName("data")]
-    public List<ActiveSession>? Data { get; set; }
+    public ActiveSessionsData? Data { get; set; }
 }
 
 public class TaskTimeResponse
