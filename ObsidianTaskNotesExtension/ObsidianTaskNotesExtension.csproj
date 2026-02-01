@@ -18,6 +18,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- Make internal constructors visible to test project -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="ObsidianTaskNotesExtension.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />

@@ -1,6 +1,5 @@
-// Copyright (c) Microsoft Corporation
-// The Microsoft Corporation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
+// Copyright (c) 2025 Gilbert Sanchez
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
@@ -24,7 +23,7 @@ public partial class ObsidianTaskNotesExtensionCommandsProvider : CommandProvide
         // Initialize shared services
         _settingsManager = new SettingsManager();
         _apiClient = new TaskNotesApiClient(_settingsManager);
-        _iconMappingService = new IconMappingService(_settingsManager.IconMappings);
+        _iconMappingService = new IconMappingService(_settingsManager);
 
         // Create pages
         var tasksPage = new ObsidianTaskNotesExtensionPage(_apiClient, _iconMappingService);

@@ -1,5 +1,5 @@
-// Copyright (c) Gilbert Sanchez. All rights reserved.
-// Licensed under the MIT License. See LICENSE file for details.
+// Copyright (c) 2025 Gilbert Sanchez
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using ObsidianTaskNotesExtension.Models;
 using ObsidianTaskNotesExtension.Services;
@@ -356,42 +356,14 @@ public class IconMappingServiceTests
 
   #endregion
 
-  #region Config Property
+  #region Constructor Validation
 
   [Fact]
-  public void Config_CanBeUpdated()
+  public void Constructor_WithNullConfig_ThrowsArgumentNullException()
   {
-    var service = new IconMappingService(CreateDefaultConfig());
-    var newConfig = new IconMappingConfig { DefaultIcon = "\uE734" }; // Star
-
-    service.Config = newConfig;
-
-    service.Config.DefaultIcon.Should().Be("\uE734");
-  }
-
-  [Fact]
-  public void Config_ThrowsOnNull()
-  {
-    var service = new IconMappingService(CreateDefaultConfig());
-
-    var act = () => service.Config = null!;
+    var act = () => new IconMappingService((IconMappingConfig)null!);
 
     act.Should().Throw<ArgumentNullException>();
-  }
-
-  #endregion
-
-  #region CreateDefault
-
-  [Fact]
-  public void CreateDefault_ReturnsServiceWithDefaultConfig()
-  {
-    var service = IconMappingService.CreateDefault();
-
-    service.Should().NotBeNull();
-    service.Config.Should().NotBeNull();
-    service.Config.StatusIcons.Should().ContainKey("todo");
-    service.Config.StatusIcons.Should().ContainKey("done");
   }
 
   #endregion

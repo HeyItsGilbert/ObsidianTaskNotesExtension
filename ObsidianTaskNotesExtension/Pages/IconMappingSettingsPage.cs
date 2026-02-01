@@ -1,5 +1,5 @@
-// Copyright (c) Gilbert Sanchez. All rights reserved.
-// Licensed under the MIT License. See LICENSE file for details.
+// Copyright (c) 2025 Gilbert Sanchez
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
 using System.Collections.Generic;
@@ -36,7 +36,7 @@ internal sealed partial class IconMappingSettingsPage : ListPage
 
   public override IListItem[] GetItems()
   {
-    var currentSource = _iconMappingService.Config.PrimaryIconSource;
+    var currentSource = _settingsManager.IconMappings.PrimaryIconSource;
     var sourceDescription = currentSource switch
     {
       IconPriority.Status => "Task status (todo, done, archived, etc.)",
@@ -116,7 +116,7 @@ internal sealed partial class IconSourceSelectionFormContent : FormContent
     _iconMappingService = iconMappingService;
     _refreshCallback = refreshCallback;
 
-    var config = _iconMappingService.Config;
+    var config = _settingsManager.IconMappings;
     var currentSource = config.PrimaryIconSource.ToString();
 
     TemplateJson = $$"""
@@ -188,10 +188,10 @@ internal sealed partial class IconSourceSelectionFormContent : FormContent
 
     if (Enum.TryParse<IconPriority>(primarySourceStr, out var primarySource))
     {
-      var config = _iconMappingService.Config;
+      var config = _settingsManager.IconMappings;
       config.PrimaryIconSource = primarySource;
       _settingsManager.UpdateIconMappings(config);
-      _iconMappingService.Config = config;
+      // SettingsManager updated - IconMappingService reads from it on each call
 
       Debug.WriteLine($"[IconMappingSettings] Set primary icon source to: {primarySource}");
       _refreshCallback?.Invoke();
@@ -240,7 +240,7 @@ internal sealed partial class CustomIconMappingFormContent : FormContent
     _settingsManager = settingsManager;
     _iconMappingService = iconMappingService;
 
-    var config = _iconMappingService.Config;
+    var config = _settingsManager.IconMappings;
 
     // Serialize current mappings for display
     var projectMappings = FormatMappingsForDisplay(config.ProjectIcons);
@@ -360,7 +360,7 @@ internal sealed partial class CustomIconMappingFormContent : FormContent
     var formInput = JsonNode.Parse(payload)?.AsObject();
     if (formInput == null) return CommandResult.KeepOpen();
 
-    var config = _iconMappingService.Config;
+    var config = _settingsManager.IconMappings;
 
     // Parse and update project mappings
     ParseMappings(formInput["projectMappings"]?.GetValue<string>(), config.ProjectIcons);
@@ -497,7 +497,14 @@ internal sealed partial class ExportIconMappingsCommand : InvokableCommand
     {
       Debug.WriteLine($"[IconMappingSettings] Exported to: {filePath}");
       // Open the folder to show the file
-      Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+      try
+      {
+        Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+      }
+      catch
+      {
+        // Silently fail if explorer cannot be opened
+      }
     }
 
     return CommandResult.KeepOpen();
@@ -529,8 +536,7 @@ internal sealed partial class ImportIconMappingsCommand : InvokableCommand
 
     if (_settingsManager.ImportIconMappings(filePath))
     {
-      // Update the service with new config
-      _iconMappingService.Config = _settingsManager.IconMappings;
+      // SettingsManager updated - IconMappingService reads from it on each call
       Debug.WriteLine($"[IconMappingSettings] Imported from: {filePath}");
       _refreshCallback?.Invoke();
     }
@@ -565,7 +571,7 @@ internal sealed partial class ResetIconMappingsCommand : InvokableCommand
   {
     var defaultConfig = new IconMappingConfig();
     _settingsManager.UpdateIconMappings(defaultConfig);
-    _iconMappingService.Config = defaultConfig;
+    // SettingsManager updated - IconMappingService reads from it on each call
 
     Debug.WriteLine("[IconMappingSettings] Reset to defaults");
     _refreshCallback?.Invoke();

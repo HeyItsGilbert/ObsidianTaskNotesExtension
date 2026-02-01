@@ -1,8 +1,9 @@
-// Copyright (c) Gilbert Sanchez. All rights reserved.
-// Licensed under the MIT License. See LICENSE file for details.
+// Copyright (c) 2025 Gilbert Sanchez
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace ObsidianTaskNotesExtension.Models;
@@ -205,12 +206,10 @@ public static class IconPalette
   /// </summary>
   public static string? GetNameForCode(string code)
   {
-    foreach (var kvp in Icons)
-    {
-      if (kvp.Value == code)
-        return kvp.Key;
-    }
-    return null;
+    return Icons
+      .Where(kvp => kvp.Value == code)
+      .Select(kvp => kvp.Key)
+      .FirstOrDefault();
   }
 
   /// <summary>

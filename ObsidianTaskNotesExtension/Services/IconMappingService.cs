@@ -1,7 +1,8 @@
-// Copyright (c) Gilbert Sanchez. All rights reserved.
-// Licensed under the MIT License. See LICENSE file for details.
+// Copyright (c) 2025 Gilbert Sanchez
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Linq;
 using Microsoft.CommandPalette.Extensions.Toolkit;
 using ObsidianTaskNotesExtension.Models;
 
@@ -10,27 +11,37 @@ namespace ObsidianTaskNotesExtension.Services;
 /// <summary>
 /// Service that resolves task icons based on user-configured mappings.
 /// Uses the configured primary icon source, falling back to status if no match.
+/// Reads configuration from SettingsManager on each call to ensure updates are reflected immediately.
 /// </summary>
 public class IconMappingService
 {
-  private IconMappingConfig _config;
+  private readonly SettingsManager? _settingsManager;
+  private readonly IconMappingConfig? _testConfig;
 
   /// <summary>
-  /// Initializes a new instance with the specified configuration.
+  /// Initializes a new instance with the specified settings manager.
+  /// Configuration is read from SettingsManager on each ResolveIcon call.
   /// </summary>
-  public IconMappingService(IconMappingConfig config)
+  public IconMappingService(SettingsManager settingsManager)
   {
-    _config = config ?? throw new ArgumentNullException(nameof(config));
+    _settingsManager = settingsManager ?? throw new ArgumentNullException(nameof(settingsManager));
+    _testConfig = null;
   }
 
   /// <summary>
-  /// Gets or sets the current icon mapping configuration.
+  /// Initializes a new instance with the specified configuration (for unit testing).
   /// </summary>
-  public IconMappingConfig Config
+  /// <param name="config">The icon mapping configuration to use.</param>
+  internal IconMappingService(IconMappingConfig config)
   {
-    get => _config;
-    set => _config = value ?? throw new ArgumentNullException(nameof(value));
+    _testConfig = config ?? throw new ArgumentNullException(nameof(config));
+    _settingsManager = null;
   }
+
+  /// <summary>
+  /// Gets the current icon mapping configuration from SettingsManager or test config.
+  /// </summary>
+  private IconMappingConfig Config => _testConfig ?? _settingsManager!.IconMappings;
 
   /// <summary>
   /// Resolves the appropriate icon for a task based on the configured primary source.
@@ -42,31 +53,33 @@ public class IconMappingService
   {
     ArgumentNullException.ThrowIfNull(task);
 
+    var config = Config;
+
     // Try the primary source first
-    var iconCode = ResolveFromSource(_config.PrimaryIconSource, task);
+    var iconCode = ResolveFromSource(config.PrimaryIconSource, task, config);
 
     // If primary source didn't match and it's not already Status, fall back to Status
-    if (iconCode == null && _config.PrimaryIconSource != IconPriority.Status)
+    if (iconCode == null && config.PrimaryIconSource != IconPriority.Status)
     {
-      iconCode = ResolveStatusIcon(task);
+      iconCode = ResolveStatusIcon(task, config);
     }
 
     // Return the resolved icon or the default
-    return new IconInfo(iconCode ?? _config.DefaultIcon);
+    return new IconInfo(iconCode ?? config.DefaultIcon);
   }
 
   /// <summary>
   /// Resolves an icon from the specified source.
   /// </summary>
-  private string? ResolveFromSource(IconPriority source, TaskItem task)
+  private static string? ResolveFromSource(IconPriority source, TaskItem task, IconMappingConfig config)
   {
     return source switch
     {
-      IconPriority.Status => ResolveStatusIcon(task),
-      IconPriority.Priority => ResolvePriorityIcon(task),
-      IconPriority.Project => ResolveProjectIcon(task),
-      IconPriority.Context => ResolveContextIcon(task),
-      IconPriority.Tag => ResolveTagIcon(task),
+      IconPriority.Status => ResolveStatusIcon(task, config),
+      IconPriority.Priority => ResolvePriorityIcon(task, config),
+      IconPriority.Project => ResolveProjectIcon(task, config),
+      IconPriority.Context => ResolveContextIcon(task, config),
+      IconPriority.Tag => ResolveTagIcon(task, config),
       _ => null,
     };
   }
@@ -75,27 +88,27 @@ public class IconMappingService
   /// Resolves an icon based on task status.
   /// Handles special computed states like overdue, archived, completed.
   /// </summary>
-  private string? ResolveStatusIcon(TaskItem task)
+  private static string? ResolveStatusIcon(TaskItem task, IconMappingConfig config)
   {
     // Check computed states first (most specific)
-    if (task.IsOverdue && _config.StatusIcons.TryGetValue("overdue", out var overdueIcon))
+    if (task.IsOverdue && config.StatusIcons.TryGetValue("overdue", out var overdueIcon))
     {
       return overdueIcon;
     }
 
-    if (task.Archived && _config.StatusIcons.TryGetValue("archived", out var archivedIcon))
+    if (task.Archived && config.StatusIcons.TryGetValue("archived", out var archivedIcon))
     {
       return archivedIcon;
     }
 
-    if (task.Completed && _config.StatusIcons.TryGetValue("completed", out var completedIcon))
+    if (task.Completed && config.StatusIcons.TryGetValue("completed", out var completedIcon))
     {
       return completedIcon;
     }
 
     // Check raw status value
     if (!string.IsNullOrEmpty(task.Status) &&
-        _config.StatusIcons.TryGetValue(task.Status, out var statusIcon))
+        config.StatusIcons.TryGetValue(task.Status, out var statusIcon))
     {
       return statusIcon;
     }
@@ -106,101 +119,67 @@ public class IconMappingService
   /// <summary>
   /// Resolves an icon based on task priority.
   /// </summary>
-  private string? ResolvePriorityIcon(TaskItem task)
+  private static string? ResolvePriorityIcon(TaskItem task, IconMappingConfig config)
   {
     if (string.IsNullOrEmpty(task.Priority))
     {
       return null;
     }
 
-    if (_config.PriorityIcons.TryGetValue(task.Priority, out var icon))
-    {
-      return icon;
-    }
-
-    return null;
+    return config.PriorityIcons.TryGetValue(task.Priority, out var icon) ? icon : null;
   }
 
   /// <summary>
   /// Resolves an icon based on task projects.
   /// Returns the first matching project icon found.
   /// </summary>
-  private string? ResolveProjectIcon(TaskItem task)
+  private static string? ResolveProjectIcon(TaskItem task, IconMappingConfig config)
   {
     if (task.Projects == null || task.Projects.Length == 0)
     {
       return null;
     }
 
-    foreach (var project in task.Projects)
-    {
-      // Normalize: remove + prefix if present
-      var normalizedProject = project.TrimStart('+');
-
-      if (_config.ProjectIcons.TryGetValue(normalizedProject, out var icon))
-      {
-        return icon;
-      }
-    }
-
-    return null;
+    return task.Projects
+      .Select(project => project.TrimStart('+'))
+      .Where(normalizedProject => config.ProjectIcons.ContainsKey(normalizedProject))
+      .Select(normalizedProject => config.ProjectIcons[normalizedProject])
+      .FirstOrDefault();
   }
 
   /// <summary>
   /// Resolves an icon based on task contexts.
   /// Returns the first matching context icon found.
   /// </summary>
-  private string? ResolveContextIcon(TaskItem task)
+  private static string? ResolveContextIcon(TaskItem task, IconMappingConfig config)
   {
     if (task.Contexts == null || task.Contexts.Length == 0)
     {
       return null;
     }
 
-    foreach (var context in task.Contexts)
-    {
-      // Normalize: remove @ prefix if present
-      var normalizedContext = context.TrimStart('@');
-
-      if (_config.ContextIcons.TryGetValue(normalizedContext, out var icon))
-      {
-        return icon;
-      }
-    }
-
-    return null;
+    return task.Contexts
+      .Select(context => context.TrimStart('@'))
+      .Where(normalizedContext => config.ContextIcons.ContainsKey(normalizedContext))
+      .Select(normalizedContext => config.ContextIcons[normalizedContext])
+      .FirstOrDefault();
   }
 
   /// <summary>
   /// Resolves an icon based on task tags.
   /// Returns the first matching tag icon found.
   /// </summary>
-  private string? ResolveTagIcon(TaskItem task)
+  private static string? ResolveTagIcon(TaskItem task, IconMappingConfig config)
   {
     if (task.Tags == null || task.Tags.Length == 0)
     {
       return null;
     }
 
-    foreach (var tag in task.Tags)
-    {
-      // Normalize: remove # prefix if present
-      var normalizedTag = tag.TrimStart('#');
-
-      if (_config.TagIcons.TryGetValue(normalizedTag, out var icon))
-      {
-        return icon;
-      }
-    }
-
-    return null;
-  }
-
-  /// <summary>
-  /// Creates a default IconMappingService with standard icon mappings.
-  /// </summary>
-  public static IconMappingService CreateDefault()
-  {
-    return new IconMappingService(new IconMappingConfig());
+    return task.Tags
+      .Select(tag => tag.TrimStart('#'))
+      .Where(normalizedTag => config.TagIcons.ContainsKey(normalizedTag))
+      .Select(normalizedTag => config.TagIcons[normalizedTag])
+      .FirstOrDefault();
   }
 }
