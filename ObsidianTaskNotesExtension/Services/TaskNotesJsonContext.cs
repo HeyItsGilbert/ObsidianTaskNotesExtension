@@ -1,6 +1,5 @@
-// Copyright (c) Microsoft Corporation
-// The Microsoft Corporation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
+// Copyright (c) 2025 Gilbert Sanchez
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -73,6 +72,10 @@ public class TaskIdRequest
 [JsonSerializable(typeof(DateRequest))]
 [JsonSerializable(typeof(TaskIdRequest))]
 [JsonSerializable(typeof(ExtensionSettings))]
+[JsonSerializable(typeof(IconMappingConfig))]
+[JsonSerializable(typeof(IconPriority))]
+[JsonSerializable(typeof(IconPriority[]))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
 internal sealed partial class TaskNotesJsonContext : JsonSerializerContext
 {
 }

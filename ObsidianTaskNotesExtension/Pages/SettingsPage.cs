@@ -1,6 +1,5 @@
-// Copyright (c) Microsoft Corporation
-// The Microsoft Corporation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
+// Copyright (c) 2025 Gilbert Sanchez
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Text.Json.Nodes;
 using Microsoft.CommandPalette.Extensions;
@@ -87,11 +86,14 @@ internal sealed partial class SettingsFormContent : FormContent
         var authToken = formInput["authToken"]?.GetValue<string>() ?? "";
         var vaultName = formInput["vaultName"]?.GetValue<string>() ?? "";
 
+        // Preserve existing icon mappings when saving connection settings
+        var currentSettings = _settingsManager.GetSettings();
         _settingsManager.SaveSettings(new ExtensionSettings
         {
             ApiBaseUrl = apiBaseUrl,
             AuthToken = authToken,
-            VaultName = vaultName
+            VaultName = vaultName,
+            IconMappings = currentSettings.IconMappings
         });
 
         return CommandResult.GoBack();
@@ -127,11 +129,13 @@ internal sealed partial class SettingsPage : ListPage
 {
     private readonly SettingsManager _settingsManager;
     private readonly TaskNotesApiClient _apiClient;
+    private readonly IconMappingService _iconMappingService;
 
-    public SettingsPage(SettingsManager settingsManager, TaskNotesApiClient apiClient)
+    public SettingsPage(SettingsManager settingsManager, TaskNotesApiClient apiClient, IconMappingService iconMappingService)
     {
         _settingsManager = settingsManager;
         _apiClient = apiClient;
+        _iconMappingService = iconMappingService;
 
         Icon = new IconInfo("\uE713"); // Settings icon
         Title = "Settings";
@@ -142,6 +146,7 @@ internal sealed partial class SettingsPage : ListPage
     {
         var settingsForm = new SettingsFormPage(_settingsManager, _apiClient);
         var testCommand = new TestConnectionCommand(_apiClient);
+        var iconMappingsPage = new IconMappingSettingsPage(_settingsManager, _iconMappingService);
 
         return
         [
@@ -156,6 +161,12 @@ internal sealed partial class SettingsPage : ListPage
                 Title = "Test Connection",
                 Subtitle = "Verify TaskNotes API is reachable",
                 Icon = new IconInfo("\uE703")
+            },
+            new ListItem(iconMappingsPage)
+            {
+                Title = "Icon Mappings",
+                Subtitle = "Configure task icons by status, project, context, or tag",
+                Icon = new IconInfo("\uE790")
             }
         ];
     }
