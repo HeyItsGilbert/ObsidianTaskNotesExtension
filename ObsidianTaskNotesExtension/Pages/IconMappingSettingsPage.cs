@@ -188,7 +188,7 @@ internal sealed partial class IconSourceSelectionFormContent : FormContent
 
     if (Enum.TryParse<IconPriority>(primarySourceStr, out var primarySource))
     {
-      var config = _settingsManager.IconMappings;
+      var config = _settingsManager.IconMappings.Clone();
       config.PrimaryIconSource = primarySource;
       _settingsManager.UpdateIconMappings(config);
       // SettingsManager updated - IconMappingService reads from it on each call
@@ -360,7 +360,7 @@ internal sealed partial class CustomIconMappingFormContent : FormContent
     var formInput = JsonNode.Parse(payload)?.AsObject();
     if (formInput == null) return CommandResult.KeepOpen();
 
-    var config = _settingsManager.IconMappings;
+    var config = _settingsManager.IconMappings.Clone();
 
     // Parse and update project mappings
     ParseMappings(formInput["projectMappings"]?.GetValue<string>(), config.ProjectIcons);

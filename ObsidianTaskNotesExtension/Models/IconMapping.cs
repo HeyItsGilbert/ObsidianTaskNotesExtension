@@ -132,6 +132,23 @@ public class IconMappingConfig
   /// </summary>
   [JsonPropertyName("defaultIcon")]
   public string DefaultIcon { get; set; } = "\uE73A"; // Checkbox
+
+  /// <summary>
+  /// Creates a deep copy of this configuration to avoid mutating shared state.
+  /// </summary>
+  public IconMappingConfig Clone()
+  {
+    return new IconMappingConfig
+    {
+      PrimaryIconSource = PrimaryIconSource,
+      StatusIcons = new Dictionary<string, string>(StatusIcons, StringComparer.OrdinalIgnoreCase),
+      PriorityIcons = new Dictionary<string, string>(PriorityIcons, StringComparer.OrdinalIgnoreCase),
+      ProjectIcons = new Dictionary<string, string>(ProjectIcons, StringComparer.OrdinalIgnoreCase),
+      ContextIcons = new Dictionary<string, string>(ContextIcons, StringComparer.OrdinalIgnoreCase),
+      TagIcons = new Dictionary<string, string>(TagIcons, StringComparer.OrdinalIgnoreCase),
+      DefaultIcon = DefaultIcon,
+    };
+  }
 }
 
 /// <summary>

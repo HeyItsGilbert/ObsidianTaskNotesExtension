@@ -122,10 +122,10 @@ public class IconMappingServiceTests
   {
     var config = CreateDefaultConfig();
     config.PrimaryIconSource = IconPriority.Priority;
-    // No priority mapping for "low"
+    // No priority mapping for "unknown-priority"
 
     var service = new IconMappingService(config);
-    var task = CreateTask(status: "done", priority: "low");
+    var task = CreateTask(status: "done", priority: "unknown-priority");
 
     // Should fall back to status icon
     var icon = service.ResolveIcon(task);

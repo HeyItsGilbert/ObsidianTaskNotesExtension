@@ -101,10 +101,10 @@ To use an icon from the reference:
 You can share icon configurations between machines:
 
 1. **Export:** Go to **Icon Settings → Import/Export → Export Mappings**
-   - Saves to `Documents\obsidian-tasknotes-icon-mappings.json`
+   - Saves to `Documents/obsidian-tasknotes-icon-mappings.json`
 
 2. **Import:** Go to **Icon Settings → Import/Export → Import Mappings**
-   - Reads from `Documents\obsidian-tasknotes-icon-mappings.json`
+   - Reads from `Documents/obsidian-tasknotes-icon-mappings.json`
 
 3. **Reset:** Go to **Icon Settings → Import/Export → Reset to Defaults**
    - Restores all default icon mappings
