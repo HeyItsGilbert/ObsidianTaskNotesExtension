@@ -2,6 +2,8 @@
 
 A [PowerToys Run Command Palette](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/extensibility-overview) extension that integrates with the [TaskNotes](https://tasknotes.dev/) Obsidian plugin to manage tasks directly from your desktop.
 
+![Demo of Capabilities](assets\ObsidianTaskNotesExtDemo.gif)
+
 ## Features
 
 - **View Tasks** — Browse active, completed, and archived tasks with priority and due date badges
