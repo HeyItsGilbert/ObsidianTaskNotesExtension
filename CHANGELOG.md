@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.3.0] 2026-02-27
+
+### Added
+
+- New application asset images for branding and Store submission
+  (SmallTile, SplashScreen, Square150x150Logo, Wide310x150Logo,
+  Screenshot, StoreLogo-1080)
+
+### Changed
+
+- Improved psakefile argument handling and output formatting for
+  better build script maintainability
+- Enhanced build script for asset preparation and MSIX packaging
+
 ## [0.2.1] 2026-02-27
 
 ### Fixed

@@ -1,12 +1,13 @@
 # Obsidian Task Notes Extension - PSake Build File
 # This file defines build, test, and deployment tasks using psake
-# spell-checker:ignore LASTEXITCODE csproj msix
+# spell-checker:ignore LASTEXITCODE csproj msix msixbundle makeappx appxmanifest signtool pfx certutil
 
 # Task configuration
 $projectPath = Join-Path $PSScriptRoot "ObsidianTaskNotesExtension"
 $solutionPath = Join-Path $PSScriptRoot "ObsidianTaskNotesExtension.sln"
 $csprojPath = Join-Path $projectPath "ObsidianTaskNotesExtension.csproj"
 $installerOutputDir = Join-Path $projectPath "bin\Release\installer"
+$appPackagesDir = Join-Path $projectPath "AppPackages"
 $buildConfiguration = "Debug"
 $runtimes = @("win-x64", "win-arm64")
 
@@ -27,9 +28,14 @@ Task default -Depends Build
 Task Clean -Description "Clean build artifacts" {
   Write-Host "Cleaning solution..." -ForegroundColor Green
     
-  # Remove bin and obj directories
+  # Remove bin, obj, and AppPackages directories
   Get-ChildItem -Path $projectPath -Directory -Filter "bin" -Recurse | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
   Get-ChildItem -Path $projectPath -Directory -Filter "obj" -Recurse | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+  if (Test-Path $appPackagesDir) { Remove-Item $appPackagesDir -Recurse -Force -ErrorAction SilentlyContinue }
+
+  # Remove bundle output
+  $bundleOutputDir = Join-Path $PSScriptRoot "bin\Release"
+  if (Test-Path $bundleOutputDir) { Remove-Item $bundleOutputDir -Recurse -Force -ErrorAction SilentlyContinue }
     
   Write-Host "Clean completed." -ForegroundColor Green
 }
@@ -72,10 +78,13 @@ Task Publish -Depends BuildRelease -Description "Publish Release build" {
   Push-Location $PSScriptRoot
   foreach ($runtime in $runtimes) {
     Write-Host "Publishing for runtime: $runtime" -ForegroundColor Yellow
-    & dotnet publish $csprojPath `
-      --configuration Release `
-      --runtime $runtime `
-      --verbosity normal
+    $dotnetArgs = @(
+      'publish', $csprojPath
+      '--configuration', 'Release'
+      '--runtime', $runtime
+      '--verbosity', 'normal'
+    )
+    & dotnet @dotnetArgs
         
     if ($LASTEXITCODE -ne 0) {
       throw "Publish failed for runtime '$runtime' with exit code $LASTEXITCODE"
@@ -86,26 +95,351 @@ Task Publish -Depends BuildRelease -Description "Publish Release build" {
   Write-Host "Publish completed." -ForegroundColor Green
 }
 
-# Package MSIX
-Task PackageMsix -Depends Publish -Description "Create MSIX package" {
-  Write-Host "Creating MSIX package..." -ForegroundColor Green
-    
+# Build MSIX packages for each platform
+Task BuildMsix -Depends Restore -Description "Build MSIX packages for x64 and ARM64" {
+  Write-Host "Building MSIX packages..." -ForegroundColor Green
+
+  # Get version and extension name from csproj
+  $xml = [xml](Get-Content $csprojPath)
+  $script:MsixVersion = $xml.Project.PropertyGroup.AppxPackageVersion | Select-Object -First 1
+  $script:ExtensionName = $xml.Project.PropertyGroup.AppxPackageIdentityName | Select-Object -First 1
+  Write-Host "Extension: $script:ExtensionName, Version: $script:MsixVersion" -ForegroundColor Yellow
+
   Push-Location $PSScriptRoot
-  foreach ($runtime in $runtimes) {
-    Write-Host "Creating MSIX package for runtime: $runtime" -ForegroundColor Yellow
-    & dotnet publish $csprojPath `
-      --configuration Release `
-      --runtime $runtime `
-      --output $installerOutputDir/msix/$runtime `
-      --verbosity normal
-      
-    if ($LASTEXITCODE -ne 0) {
-      throw "MSIX packaging failed for runtime '$runtime' with exit code $LASTEXITCODE"
+
+  # Build x64 MSIX
+  Write-Host
+  Write-Host "=== Building x64 MSIX ===" -ForegroundColor Cyan
+  $dotnetArgs = @(
+    'build', $csprojPath
+    '--configuration', 'Release'
+    '/p:GenerateAppxPackageOnBuild=true'
+    '/p:Platform=x64'
+    "/p:AppxPackageDir=$appPackagesDir\x64\"
+  )
+  & dotnet @dotnetArgs
+  if ($LASTEXITCODE -ne 0) {
+    throw "MSIX build failed for x64 with exit code $LASTEXITCODE"
+  }
+
+  # Build ARM64 MSIX - use separate output dir so it doesn't overwrite x64
+  Write-Host
+  Write-Host "=== Building ARM64 MSIX ===" -ForegroundColor Cyan
+  $dotnetArgs = @(
+    'build', $csprojPath
+    '--configuration', 'Release'
+    '/p:GenerateAppxPackageOnBuild=true'
+    '/p:Platform=ARM64'
+    "/p:AppxPackageDir=$appPackagesDir\arm64\"
+  )
+  & dotnet @dotnetArgs
+  if ($LASTEXITCODE -ne 0) {
+    throw "MSIX build failed for ARM64 with exit code $LASTEXITCODE"
+  }
+
+  Pop-Location
+
+  # Locate the generated .msix files
+  $script:MsixX64 = Get-ChildItem "$appPackagesDir" -Recurse -Filter "*.msix" |
+    Where-Object { $_.FullName -match 'x64' -and $_.Name -match 'x64' } |
+    Select-Object -First 1
+  $script:MsixArm64 = Get-ChildItem "$appPackagesDir" -Recurse -Filter "*.msix" |
+    Where-Object { $_.FullName -match 'arm64' -and $_.Name -match 'arm64' } |
+    Select-Object -First 1
+
+  if (-not $script:MsixX64) {
+    Write-Warning "x64 MSIX not found. Searching all .msix files under AppPackages..."
+    Get-ChildItem "$appPackagesDir" -Recurse -Filter "*.msix" | ForEach-Object { Write-Host "  Found: $($_.FullName)" }
+    throw "Could not locate x64 .msix file"
+  }
+  if (-not $script:MsixArm64) {
+    Write-Warning "ARM64 MSIX not found. Searching all .msix files under AppPackages..."
+    Get-ChildItem "$appPackagesDir" -Recurse -Filter "*.msix" | ForEach-Object { Write-Host "  Found: $($_.FullName)" }
+    throw "Could not locate ARM64 .msix file"
+  }
+
+  Write-Host
+  Write-Host "x64 MSIX:   $($script:MsixX64.FullName)" -ForegroundColor Green
+  Write-Host "ARM64 MSIX: $($script:MsixArm64.FullName)" -ForegroundColor Green
+  Write-Host "MSIX build completed." -ForegroundColor Green
+}
+
+# Bundle MSIX packages into a single .msixbundle for Store submission
+Task BundleMsix -Depends BuildMsix -Description "Create .msixbundle from x64 and ARM64 MSIX packages" {
+  Write-Host "Creating MSIX bundle..." -ForegroundColor Green
+
+  $bundleOutputDir = Join-Path $PSScriptRoot "bin\Release"
+  if (-not (Test-Path $bundleOutputDir)) {
+    New-Item -ItemType Directory -Path $bundleOutputDir -Force | Out-Null
+  }
+
+  $bundleFileName = "${script:ExtensionName}_${script:MsixVersion}_Bundle.msixbundle"
+  $bundlePath = Join-Path $bundleOutputDir $bundleFileName
+
+  # Create bundle_mapping.txt
+  $mappingFile = Join-Path $bundleOutputDir "bundle_mapping.txt"
+  $mappingContent = @"
+[Files]
+"$($script:MsixX64.FullName)" "$($script:MsixX64.Name)"
+"$($script:MsixArm64.FullName)" "$($script:MsixArm64.Name)"
+"@
+  $mappingContent | Out-File -FilePath $mappingFile -Encoding UTF8
+  Write-Host "Bundle mapping written to: $mappingFile" -ForegroundColor Yellow
+
+  # Find makeappx.exe
+  $makeappxPath = $null
+
+  # Check Windows SDK paths
+  $sdkPaths = @(
+    "${env:ProgramFiles(x86)}\Windows Kits\10\bin",
+    "${env:ProgramFiles}\Windows Kits\10\bin"
+  )
+
+  foreach ($sdkBase in $sdkPaths) {
+    if (Test-Path $sdkBase) {
+      # Find the latest version
+      $latestSdk = Get-ChildItem $sdkBase -Directory |
+        Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+        Sort-Object Name -Descending |
+        Select-Object -First 1
+      if ($latestSdk) {
+        $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
+          "AMD64" { "x64" }
+          "x86" { "x86" }
+          "ARM64" { "arm64" }
+          default { "x64" }
+        }
+        $candidate = Join-Path $latestSdk.FullName "$arch\makeappx.exe"
+        if (Test-Path $candidate) {
+          $makeappxPath = $candidate
+          break
+        }
+      }
     }
   }
-  Pop-Location
-    
-  Write-Host "MSIX package created." -ForegroundColor Green
+
+  if (-not $makeappxPath) {
+    # Fallback: search NuGet packages for makeappx from SDK BuildTools
+    $nugetMakeappx = Get-ChildItem "$projectPath" -Recurse -Filter "makeappx.exe" -ErrorAction SilentlyContinue |
+      Select-Object -First 1
+    if ($nugetMakeappx) {
+      $makeappxPath = $nugetMakeappx.FullName
+    }
+  }
+
+  if (-not $makeappxPath) {
+    throw "makeappx.exe not found. Install the Windows SDK or ensure Microsoft.Windows.SDK.BuildTools.MSIX NuGet package is restored."
+  }
+
+  Write-Host "Using makeappx: $makeappxPath" -ForegroundColor Yellow
+
+  # Create the bundle
+  & $makeappxPath bundle /v /f $mappingFile /p $bundlePath /o
+  if ($LASTEXITCODE -ne 0) {
+    throw "makeappx bundle failed with exit code $LASTEXITCODE"
+  }
+
+  $script:BundlePath = $bundlePath
+  $sizeMB = [math]::Round((Get-Item $bundlePath).Length / 1MB, 2)
+  Write-Host
+  Write-Host "MSIX bundle created: $bundlePath ($sizeMB MB)" -ForegroundColor Green
+}
+
+# Verify MSIX bundle was created
+Task VerifyMsix -Description "Verify that the MSIX bundle was created successfully" {
+  Write-Host "Verifying MSIX bundle..." -ForegroundColor Green
+
+  $bundleOutputDir = Join-Path $PSScriptRoot "bin\Release"
+  $bundle = Get-ChildItem "$bundleOutputDir\*.msixbundle" -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
+
+  if ($bundle) {
+    $sizeMB = [math]::Round($bundle.Length / 1MB, 2)
+    Write-Host "Found MSIX bundle: $($bundle.Name) ($sizeMB MB)" -ForegroundColor Green
+  } else {
+    throw "No .msixbundle file found in $bundleOutputDir"
+  }
+
+  # Also verify individual MSIX files exist
+  $msixFiles = Get-ChildItem "$appPackagesDir" -Recurse -Filter "*.msix"
+  Write-Host "Individual MSIX packages:" -ForegroundColor Yellow
+  foreach ($msix in $msixFiles) {
+    $sizeMB = [math]::Round($msix.Length / 1MB, 2)
+    Write-Host "  $($msix.Name) ($sizeMB MB)" -ForegroundColor White
+  }
+
+  Write-Host
+  Write-Host "MSIX verification completed!" -ForegroundColor Green
+}
+
+# Self-sign MSIX bundle for local testing/sideloading (NOT needed for Store submission)
+Task SelfSignMsix -Depends BundleMsix -Description "Self-sign MSIX bundle for local dev/testing (not for Store)" {
+  Write-Host "Self-signing MSIX packages for local testing..." -ForegroundColor Green
+  Write-Host "NOTE: This is for local sideloading only. The Microsoft Store signs packages automatically." -ForegroundColor Yellow
+
+  # Read publisher CN from appxmanifest
+  $manifestPath = Join-Path $projectPath "Package.appxmanifest"
+  $manifest = [xml](Get-Content $manifestPath)
+  $publisherCN = $manifest.Package.Identity.Publisher
+  Write-Host "Publisher: $publisherCN" -ForegroundColor Yellow
+
+  # Certificate parameters
+  $certName = "ObsidianTaskNotes Dev Certificate"
+  $certStorePath = "Cert:\LocalMachine\My"
+  $pfxPath = Join-Path $PSScriptRoot "bin\Release\dev-signing.pfx"
+  $pfxPassword = ConvertTo-SecureString -String "DevTestOnly" -Force -AsPlainText
+
+  # Check for existing dev cert
+  $existingCert = Get-ChildItem $certStorePath |
+    Where-Object { $_.Subject -eq $publisherCN -and $_.FriendlyName -eq $certName } |
+    Sort-Object NotAfter -Descending |
+    Select-Object -First 1
+
+  if ($existingCert -and $existingCert.NotAfter -gt (Get-Date).AddDays(30)) {
+    Write-Host "Using existing dev certificate (expires: $($existingCert.NotAfter))" -ForegroundColor Cyan
+    $cert = $existingCert
+  } else {
+    Write-Host "Creating new self-signed certificate..." -ForegroundColor Cyan
+    $newSelfSignedCertificateSplat = @{
+      Type = 'Custom'
+      Subject = $publisherCN
+      FriendlyName = $certName
+      KeyUsage = 'DigitalSignature'
+      TextExtension = @("2.5.29.37={text}1.3.6.1.5.5.7.3.3")
+      CertStoreLocation = $certStorePath
+      NotAfter = (Get-Date).AddYears(1)
+    }
+
+    $cert = New-SelfSignedCertificate @newSelfSignedCertificateSplat
+    Write-Host "Certificate created, thumbprint: $($cert.Thumbprint)" -ForegroundColor Green
+  }
+
+  # Export PFX for SignTool
+  $exportPfxCertificateSplat = @{
+    Cert = "$certStorePath\$($cert.Thumbprint)"
+    FilePath = $pfxPath
+    Password = $pfxPassword
+  }
+  Export-PfxCertificate @exportPfxCertificateSplat
+
+  Assert (Test-Path $pfxPath) "Failed to export PFX certificate"
+
+  # Find SignTool.exe
+  $signToolPath = $null
+  $sdkPaths = @(
+    "${env:ProgramFiles(x86)}\Windows Kits\10\bin",
+    "${env:ProgramFiles}\Windows Kits\10\bin"
+  )
+  foreach ($sdkBase in $sdkPaths) {
+    if (Test-Path $sdkBase) {
+      $latestSdk = Get-ChildItem $sdkBase -Directory |
+        Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+        Sort-Object Name -Descending |
+        Select-Object -First 1
+      if ($latestSdk) {
+        $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
+          "AMD64" { "x64" }
+          "x86" { "x86" }
+          "ARM64" { "arm64" }
+          default { "x64" }
+        }
+        $candidate = Join-Path $latestSdk.FullName "$arch\signtool.exe"
+        if (Test-Path $candidate) {
+          $signToolPath = $candidate
+          break
+        }
+      }
+    }
+  }
+  if (-not $signToolPath) {
+    throw "SignTool.exe not found. Install the Windows SDK."
+  }
+  Write-Host "Using SignTool: $signToolPath" -ForegroundColor Yellow
+
+  # Sign individual MSIX files
+  $msixFiles = Get-ChildItem "$appPackagesDir" -Recurse -Filter "*.msix"
+  foreach ($msix in $msixFiles) {
+    Write-Host "Signing: $($msix.Name)" -ForegroundColor Cyan
+    & $signToolPath sign /fd SHA256 /a /f $pfxPath /p "DevTestOnly" $msix.FullName
+    if ($LASTEXITCODE -ne 0) {
+      throw "Failed to sign $($msix.Name)"
+    }
+  }
+
+  # Re-create the bundle from signed packages (bundle must be rebuilt after signing contents)
+  Write-Host
+  Write-Host "Re-bundling with signed packages..." -ForegroundColor Cyan
+  $bundleOutputDir = Join-Path $PSScriptRoot "bin\Release"
+  $bundleFileName = "${script:ExtensionName}_${script:MsixVersion}_Bundle.msixbundle"
+  $bundlePath = Join-Path $bundleOutputDir $bundleFileName
+  $mappingFile = Join-Path $bundleOutputDir "bundle_mapping.txt"
+
+  # Find makeappx.exe (same logic as BundleMsix)
+  $makeappxPath = $null
+  foreach ($sdkBase in $sdkPaths) {
+    if (Test-Path $sdkBase) {
+      $latestSdk = Get-ChildItem $sdkBase -Directory |
+        Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+        Sort-Object Name -Descending |
+        Select-Object -First 1
+      if ($latestSdk) {
+        $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
+          "AMD64" { "x64" }; "x86" { "x86" }; "ARM64" { "arm64" }; default { "x64" }
+        }
+        $candidate = Join-Path $latestSdk.FullName "$arch\makeappx.exe"
+        if (Test-Path $candidate) { $makeappxPath = $candidate; break }
+      }
+    }
+  }
+  if (-not $makeappxPath) {
+    throw "makeappx.exe not found. Install the Windows SDK."
+  }
+
+  # Remove old bundle and rebuild
+  if (Test-Path $bundlePath) { Remove-Item $bundlePath -Force }
+  & $makeappxPath bundle /v /f $mappingFile /p $bundlePath /o
+  if ($LASTEXITCODE -ne 0) {
+    throw "makeappx bundle failed with exit code $LASTEXITCODE"
+  }
+
+  # Sign the bundle itself
+  Write-Host "Signing bundle: $bundleFileName" -ForegroundColor Cyan
+  & $signToolPath sign /fd SHA256 /a /f $pfxPath /p "DevTestOnly" $bundlePath
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to sign bundle"
+  }
+
+  # Install cert to Trusted People store for sideloading
+  $trustedPeopleStore = "Cert:\LocalMachine\TrustedPeople"
+  $alreadyInstalled = Get-ChildItem $trustedPeopleStore -ErrorAction SilentlyContinue |
+    Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
+
+  if (-not $alreadyInstalled) {
+    Write-Host "Installing certificate to Trusted People store (may require admin)..." -ForegroundColor Yellow
+    try {
+      $importPfxCertificateSplat = @{
+        FilePath = $pfxPath
+        Password = $pfxPassword
+        CertStoreLocation = $trustedPeopleStore
+      }
+      Import-PfxCertificate @importPfxCertificateSplat | Out-Null
+      Write-Host "Certificate installed to Trusted People store." -ForegroundColor Green
+    } catch {
+      Write-Warning "Could not install cert to Trusted People store. Run as Administrator or manually import:"
+      Write-Warning "  certutil -addstore TrustedPeople '$pfxPath'"
+    }
+  } else {
+    Write-Host "Certificate already in Trusted People store." -ForegroundColor Cyan
+  }
+
+  # Clean up PFX
+  Remove-Item $pfxPath -Force -ErrorAction SilentlyContinue
+
+  $sizeMB = [math]::Round((Get-Item $bundlePath).Length / 1MB, 2)
+  Write-Host
+  Write-Host "Signed MSIX bundle ready for sideloading: $bundlePath ($sizeMB MB)" -ForegroundColor Green
+  Write-Host "Install with: Add-AppxPackage -Path '$bundlePath'" -ForegroundColor Cyan
 }
 
 # Test task (placeholder for future unit tests)
@@ -137,11 +471,14 @@ Task Analyze -Description "Run code analysis" {
   Write-Host "Running code analysis..." -ForegroundColor Green
     
   Push-Location $PSScriptRoot
-  & dotnet build $SolutionFile `
-    --configuration Debug `
-    --verbosity normal `
-    /p:TreatWarningsAsErrors=true `
-    /p:EnforceCodeStyleInBuild=true
+  $dotnetArgs = @(
+    'build', $SolutionFile
+    '--configuration', 'Debug'
+    '--verbosity', 'normal'
+    '/p:TreatWarningsAsErrors=true'
+    '/p:EnforceCodeStyleInBuild=true'
+  )
+  & dotnet @dotnetArgs
     
   if ($LASTEXITCODE -ne 0) {
     throw "Code analysis failed with exit code $LASTEXITCODE"
@@ -156,10 +493,22 @@ Task CI -Depends Clean, Restore, BuildDebug, Analyze, Test -Description "Run ful
   Write-Host "CI pipeline completed successfully!" -ForegroundColor Green
 }
 
-# Full build and publish pipeline
-Task Release -Depends Clean, Restore, BuildDebug, Analyze, Test, BuildRelease, Publish, PackageMsix -Description "Create Release build and package" {
+# Full build and publish pipeline (MSIX for Microsoft Store)
+Task Release -Depends Clean, Restore, BuildDebug, Analyze, Test, BundleMsix, VerifyMsix -Description "Create Release build with MSIX bundle for Store submission" {
   Write-Host "Release pipeline completed successfully!" -ForegroundColor Green
-  Write-Host "Outputs available in: bin/Release" -ForegroundColor Cyan
+  Write-Host "MSIX bundle available in: bin\Release" -ForegroundColor Cyan
+}
+
+# MSIX-only build (skip tests/analysis for quick iteration)
+Task ReleaseMsix -Depends Clean, BundleMsix, VerifyMsix -Description "Quick MSIX bundle build (skip tests)" {
+  Write-Host "MSIX release build completed!" -ForegroundColor Green
+
+  $bundleOutputDir = Join-Path $PSScriptRoot "bin\Release"
+  $bundle = Get-ChildItem "$bundleOutputDir\*.msixbundle" -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  if ($bundle) {
+    Write-Host "Ready for Store upload: $($bundle.FullName)" -ForegroundColor Cyan
+  }
 }
 
 # Format task
@@ -232,7 +581,8 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
   $platforms = @("x64", "arm64")
   
   foreach ($platform in $platforms) {
-    Write-Host "`n=== Building $platform installer ===" -ForegroundColor Cyan
+    Write-Host
+    Write-Host "=== Building $platform installer ===" -ForegroundColor Cyan
     
     $publishDir = Join-Path $projectPath "bin\Release\net9.0-windows10.0.26100.0\win-$platform\publish"
     
@@ -247,24 +597,25 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
     $setupScript = Get-Content $setupTemplate -Raw
     
     # Update version
-    $setupScript = $setupScript -replace '#define AppVersion ".*"', "#define AppVersion `"$Version`""
+    $setupScript = $setupScript -replace '#define AppVersion ".*"', ('#define AppVersion "' + $Version + '"')
     
     # Update output filename to include platform
-    $setupScript = $setupScript -replace 'OutputBaseFilename=(.*?)\{#AppVersion\}', "OutputBaseFilename=`$1{#AppVersion}-$platform"
+    $setupScript = $setupScript -replace 'OutputBaseFilename=(.*?)\{#AppVersion\}', ('OutputBaseFilename=$1{#AppVersion}-' + $platform)
     
     # Update source path for the platform
-    $setupScript = $setupScript -replace 'Source: "bin\\Release\\net9.0-windows10.0.26100.0\\win-x64\\publish', "Source: `"bin\Release\net9.0-windows10.0.26100.0\win-$platform\publish"
+    $setupScript = $setupScript -replace 'Source: "bin\\Release\\net9.0-windows10.0.26100.0\\win-x64\\publish', ('Source: "bin\Release\net9.0-windows10.0.26100.0\win-' + $platform + '\publish')
     
     # Add architecture settings
+    $crlf = [char]13 + [char]10
     if ($platform -eq "arm64") {
-      $setupScript = $setupScript -replace '(\[Setup\][^\[]*)(MinVersion=)', "`$1ArchitecturesAllowed=arm64`r`nArchitecturesInstallIn64BitMode=arm64`r`n`$2"
+      $setupScript = $setupScript -replace '(\[Setup\][^\[]*)(MinVersion=)', ('$1ArchitecturesAllowed=arm64' + $crlf + 'ArchitecturesInstallIn64BitMode=arm64' + $crlf + '$2')
     } else {
-      $setupScript = $setupScript -replace '(\[Setup\][^\[]*)(MinVersion=)', "`$1ArchitecturesAllowed=x64compatible`r`nArchitecturesInstallIn64BitMode=x64compatible`r`n`$2"
+      $setupScript = $setupScript -replace '(\[Setup\][^\[]*)(MinVersion=)', ('$1ArchitecturesAllowed=x64compatible' + $crlf + 'ArchitecturesInstallIn64BitMode=x64compatible' + $crlf + '$2')
     }
 
     #Update the License file with a resolved path
     $licensePath = Resolve-Path (Join-Path $projectPath "..\LICENSE.txt")
-    $setupScript = $setupScript -replace 'LicenseFile=LICENSE.txt', "LicenseFile=`"$licensePath`""
+    $setupScript = $setupScript -replace 'LicenseFile=LICENSE.txt', ('LicenseFile="' + $licensePath + '"')
     
     # Write platform-specific setup script
     $platformSetupPath = Join-Path $projectPath "setup-$platform.iss"
@@ -291,7 +642,8 @@ Task BuildExeInstaller -Depends Publish -Description "Build EXE installer for Wi
     Remove-Item $platformSetupPath -ErrorAction SilentlyContinue
   }
   
-  Write-Host "`nEXE installer build completed!" -ForegroundColor Green
+  Write-Host
+  Write-Host "EXE installer build completed!" -ForegroundColor Green
   Write-Host "Installers available in: $installerOutputDir" -ForegroundColor Cyan
 }
 
@@ -337,15 +689,23 @@ Task VerifyInstallers -Description "Verify that EXE installers were created succ
     throw "No installers were created! Check the BuildExeInstaller task output for errors."
   }
   
-  Write-Host "`nInstaller verification completed!" -ForegroundColor Green
+  Write-Host
+  Write-Host "Installer verification completed!" -ForegroundColor Green
 }
 
-# CI/CD task - alias for ReleaseExe with installer verification
-Task CICD -Depends ReleaseExe, VerifyInstallers -Description "Full CI/CD pipeline: equivalent to ReleaseExe with installer verification" {
-  Write-Host "`n========================================" -ForegroundColor Cyan
+# CI/CD task - full pipeline with MSIX bundle and EXE installers
+Task CICD -Depends Clean, Restore, BuildDebug, Analyze, Test, BundleMsix, VerifyMsix, Publish, BuildExeInstaller, VerifyInstallers -Description "Full CI/CD pipeline: MSIX bundle + EXE installers" {
+  Write-Host
+  Write-Host "========================================" -ForegroundColor Cyan
   Write-Host "CI/CD Pipeline completed successfully!" -ForegroundColor Green
   Write-Host "========================================" -ForegroundColor Cyan
-  
-  Write-Host "`nReady for release. Installers at:" -ForegroundColor Yellow
-  Write-Host "  $installerOutputDir" -ForegroundColor White
+
+  $bundleOutputDir = Join-Path $PSScriptRoot "bin\Release"
+  $bundle = Get-ChildItem "$bundleOutputDir\*.msixbundle" -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  if ($bundle) {
+    Write-Host
+    Write-Host "MSIX bundle (for Store): $($bundle.FullName)" -ForegroundColor Yellow
+  }
+  Write-Host "EXE installers (for GitHub/WinGet): $installerOutputDir" -ForegroundColor Yellow
 }
