@@ -12,7 +12,7 @@
     <AppxPackageIdentityName>ObsidianTaskNotesExtension</AppxPackageIdentityName>
     <AppxPackagePublisher>CN=65EACEA0-8D69-4D44-9669-A9E55A15A082</AppxPackagePublisher>
     <!-- Version for release builds and installer naming -->
-    <AppxPackageVersion>0.2.1.0</AppxPackageVersion>
+    <AppxPackageVersion>0.3.0.0</AppxPackageVersion>
 
     <!-- Only enable MSIX when Platform is explicitly set (not AnyCPU) -->
     <EnableMsixTooling Condition="'$(Platform)' != '' AND '$(Platform)' != 'AnyCPU'">true</EnableMsixTooling>
