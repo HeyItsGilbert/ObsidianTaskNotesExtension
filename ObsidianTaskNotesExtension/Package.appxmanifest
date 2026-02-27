@@ -10,14 +10,12 @@
 
   <Identity
     Name="ObsidianTaskNotesExtension"
-    Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
-    Version="0.2.0.0" />
-  <!-- When you're ready to publish your extension, you'll need to change the
-       Publisher= to match your own identity -->
+    Publisher="CN=65EACEA0-8D69-4D44-9669-A9E55A15A082"
+    Version="0.2.1.0" />
 
   <Properties>
     <DisplayName>Obsidian Task Notes</DisplayName>
-    <PublisherDisplayName>HeyItsGilbert</PublisherDisplayName>
+    <PublisherDisplayName>Gilbert Sanchez</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 

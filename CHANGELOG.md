@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.2.1] 2026-02-27
+
+### Fixed
+
+- Publisher identity in MSIX package configuration and manifest
+
 ## [0.2.0] 2026-01-30
 
 ### Added
