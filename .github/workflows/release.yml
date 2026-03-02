@@ -143,6 +143,13 @@ jobs:
           path: ${{ env.EXTENSION_NAME }}/bin/Release/installer/*-arm64.exe
           if-no-files-found: warn
 
+      - name: Upload MSIX bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.EXTENSION_NAME }}-msixbundle
+          path: bin/Release/*.msixbundle
+          if-no-files-found: warn
+
       - name: Create GitHub Release
         if: ${{ github.event.inputs.create_release == 'true' }}
         uses: softprops/action-gh-release@v2
@@ -183,6 +190,7 @@ jobs:
             - TaskNotes plugin installed in Obsidian
           files: |
             ${{ env.EXTENSION_NAME }}/bin/Release/installer/*.exe
+            bin/Release/*.msixbundle
           draft: false
           prerelease: false
         env:
