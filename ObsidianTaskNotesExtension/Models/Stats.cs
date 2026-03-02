@@ -27,12 +27,6 @@ public class TaskStats
     public int WithTimeTracking { get; set; }
 }
 
-public class TimeStats
-{
-    [JsonPropertyName("totalMinutes")]
-    public double TotalMinutes { get; set; }
-}
-
 public class TaskStatsResponse
 {
     [JsonPropertyName("success")]
@@ -40,13 +34,4 @@ public class TaskStatsResponse
 
     [JsonPropertyName("data")]
     public TaskStats? Data { get; set; }
-}
-
-public class TimeStatsResponse
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("data")]
-    public TimeStats? Data { get; set; }
 }

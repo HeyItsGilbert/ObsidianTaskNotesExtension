@@ -50,26 +50,15 @@ internal sealed partial class PomodoroPage : DynamicListPage
         }
 
         // === CURRENT SESSION ===
-        if (_status?.Active == true && _status.Session != null)
+        if (_status?.IsRunning == true && _status.CurrentSession != null)
         {
-            var session = _status.Session;
-            var remaining = _status.TimeRemaining.HasValue
-                ? $"{_status.TimeRemaining.Value / 60}m {_status.TimeRemaining.Value % 60}s"
-                : "In progress";
+            var session = _status.CurrentSession;
+            var remaining = $"{_status.TimeRemaining / 60}m {_status.TimeRemaining % 60}s";
 
             var stateTags = new List<ITag>();
-            var stateText = session.State?.ToLowerInvariant() ?? "working";
+            var sessionType = session.Type?.ToLowerInvariant() ?? "work";
 
-            if (stateText == "paused")
-            {
-                stateTags.Add(new Tag("Paused")
-                {
-                    Icon = new IconInfo("\uE769"),
-                    Background = ColorHelpers.FromRgb(255, 193, 7),
-                    Foreground = ColorHelpers.FromRgb(33, 37, 41)
-                });
-            }
-            else if (stateText == "break")
+            if (sessionType == "short-break" || sessionType == "long-break")
             {
                 stateTags.Add(new Tag("Break")
                 {
@@ -93,31 +82,18 @@ internal sealed partial class PomodoroPage : DynamicListPage
 
             items.Add(new ListItem(new NoOpCommand())
             {
-                Title = $"🍅 {session.TaskTitle ?? "Pomodoro Session"}",
+                Title = $"🍅 {session.Task?.Title ?? "Pomodoro Session"}",
                 Subtitle = "Active session",
                 Icon = new IconInfo("\uE916"),
                 Tags = stateTags.ToArray()
             });
 
-            // Show pause/resume based on state
-            if (session.State?.Equals("paused", StringComparison.OrdinalIgnoreCase) == true)
+            items.Add(new ListItem(new PausePomodoroCommand(_apiClient, Refresh))
             {
-                items.Add(new ListItem(new ResumePomodoroCommand(_apiClient, Refresh))
-                {
-                    Title = "▶️ Resume Pomodoro",
-                    Subtitle = "Continue your session",
-                    Icon = new IconInfo("\uE768")
-                });
-            }
-            else
-            {
-                items.Add(new ListItem(new PausePomodoroCommand(_apiClient, Refresh))
-                {
-                    Title = "⏸️ Pause Pomodoro",
-                    Subtitle = "Take a quick break",
-                    Icon = new IconInfo("\uE769")
-                });
-            }
+                Title = "⏸️ Pause Pomodoro",
+                Subtitle = "Take a quick break",
+                Icon = new IconInfo("\uE769")
+            });
 
             items.Add(new ListItem(new StopPomodoroCommand(_apiClient, Refresh))
             {
@@ -142,13 +118,13 @@ internal sealed partial class PomodoroPage : DynamicListPage
         {
             var statsTags = new List<ITag>();
 
-            if (_stats.CurrentStreak > 0)
+            if ((_status?.CurrentStreak ?? 0) > 0)
             {
-                statsTags.Add(TagHelpers.CreateStreakTag(_stats.CurrentStreak));
+                statsTags.Add(TagHelpers.CreateStreakTag(_status?.CurrentStreak ?? 0));
             }
-            statsTags.Add(TagHelpers.CreateSessionCountTag(_stats.SessionsCompleted));
+            statsTags.Add(TagHelpers.CreateSessionCountTag(_stats.CompletedSessions));
 
-            var focusTime = _stats.TotalFocusMinutes;
+            var focusTime = (double)_stats.TotalFocusTime;
             var focusStr = focusTime >= 60 ? $"{focusTime / 60:F0}h {focusTime % 60:F0}m" : $"{focusTime:F0}m";
 
             items.Add(new ListItem(new NoOpCommand())

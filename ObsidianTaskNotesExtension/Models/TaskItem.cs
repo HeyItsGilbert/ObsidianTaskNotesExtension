@@ -65,7 +65,7 @@ public class TaskItem
     public string? Details { get; set; }
 
     [JsonPropertyName("timeEstimate")]
-    public string? TimeEstimate { get; set; }
+    public int? TimeEstimate { get; set; }
 
     [JsonPropertyName("dateModified")]
     public string? DateModified { get; set; }
@@ -136,7 +136,7 @@ public class CreateTaskRequest
     public string? Details { get; set; }
 
     [JsonPropertyName("timeEstimate")]
-    public string? TimeEstimate { get; set; }
+    public int? TimeEstimate { get; set; }
 }
 
 public class UpdateTaskRequest
@@ -169,7 +169,7 @@ public class UpdateTaskRequest
     public string? Details { get; set; }
 
     [JsonPropertyName("timeEstimate")]
-    public string? TimeEstimate { get; set; }
+    public int? TimeEstimate { get; set; }
 }
 
 public class GenericApiResponse

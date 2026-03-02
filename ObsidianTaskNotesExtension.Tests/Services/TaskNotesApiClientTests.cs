@@ -290,57 +290,21 @@ public class TaskNotesApiClientTests : IDisposable
   }
 
   [Fact]
-  public async Task GetTimeStatsAsync_ReturnsTimeStats()
-  {
-    var responseJson = """
-        {
-            "success": true,
-            "data": {
-                "totalMinutes": 360.5
-            }
-        }
-        """;
-    _mockHandler.SetupResponse("/api/time-stats", HttpStatusCode.OK, responseJson);
-
-    var stats = await _apiClient.GetTimeStatsAsync();
-
-    stats.Should().NotBeNull();
-    stats!.TotalMinutes.Should().Be(360.5);
-  }
-
-  [Fact]
-  public async Task GetTimeStatsAsync_IncludesQueryParameters()
-  {
-    var responseJson = """
-        {
-            "success": true,
-            "data": {
-                "totalMinutes": 120.0
-            }
-        }
-        """;
-    _mockHandler.SetupResponse(HttpStatusCode.OK, responseJson);
-
-    await _apiClient.GetTimeStatsAsync(range: "week", start: "2025-01-01", end: "2025-01-07");
-
-    _mockHandler.Requests.Should().HaveCount(1);
-    var requestUrl = _mockHandler.Requests[0].RequestUri?.ToString();
-    requestUrl.Should().Contain("range=week");
-    requestUrl.Should().Contain("start=2025-01-01");
-    requestUrl.Should().Contain("end=2025-01-07");
-  }
-
-  [Fact]
   public async Task StartPomodoroAsync_ReturnsSession()
   {
     var responseJson = """
         {
             "success": true,
             "data": {
-                "taskId": "test.md",
-                "state": "active",
-                "timeRemaining": 1500,
-                "duration": 1500
+                "id": "session-1",
+                "type": "work",
+                "duration": 1500,
+                "startTime": "2025-01-15T10:00:00Z",
+                "task": {
+                    "path": "test.md",
+                    "title": "Test Task",
+                    "status": "todo"
+                }
             }
         }
         """;
@@ -349,8 +313,8 @@ public class TaskNotesApiClientTests : IDisposable
     var session = await _apiClient.StartPomodoroAsync("test.md");
 
     session.Should().NotBeNull();
-    session!.State.Should().Be("active");
-    session.TimeRemaining.Should().Be(1500);
+    session!.Type.Should().Be("work");
+    session.Duration.Should().Be(1500);
   }
 
   [Fact]
@@ -390,13 +354,17 @@ public class TaskNotesApiClientTests : IDisposable
         {
             "success": true,
             "data": {
-                "active": true,
-                "session": {
-                    "taskId": "test.md",
-                    "state": "active",
-                    "timeRemaining": 1200
+                "isRunning": true,
+                "timeRemaining": 1200,
+                "currentSession": {
+                    "id": "session-1",
+                    "type": "work",
+                    "duration": 1500,
+                    "startTime": "2025-01-15T10:00:00Z"
                 },
-                "timeRemaining": 1200
+                "currentStreak": 3,
+                "totalPomodoros": 10,
+                "totalMinutesToday": 75
             }
         }
         """;
@@ -405,7 +373,7 @@ public class TaskNotesApiClientTests : IDisposable
     var status = await _apiClient.GetPomodoroStatusAsync();
 
     status.Should().NotBeNull();
-    status!.Active.Should().BeTrue();
+    status!.IsRunning.Should().BeTrue();
     status.TimeRemaining.Should().Be(1200);
   }
 
@@ -417,8 +385,8 @@ public class TaskNotesApiClientTests : IDisposable
             "success": true,
             "data": {
                 "sessions": [
-                    {"taskId": "task1.md", "state": "completed"},
-                    {"taskId": "task2.md", "state": "completed"}
+                    {"id": "s1", "type": "work", "duration": 1500, "startTime": "2025-01-15T09:00:00Z"},
+                    {"id": "s2", "type": "work", "duration": 1500, "startTime": "2025-01-15T10:00:00Z"}
                 ],
                 "total": 2
             }
@@ -438,10 +406,14 @@ public class TaskNotesApiClientTests : IDisposable
         {
             "success": true,
             "data": {
-                "sessionsCompleted": 10,
-                "totalFocusMinutes": 250.0,
-                "currentStreak": 5,
-                "averageSessionMinutes": 25.0
+                "totalSessions": 12,
+                "completedSessions": 10,
+                "interruptedSessions": 2,
+                "totalFocusTime": 250,
+                "workSessions": 10,
+                "breakSessions": 2,
+                "longestStreak": 5,
+                "averageSessionLength": 25.0
             }
         }
         """;
@@ -450,9 +422,9 @@ public class TaskNotesApiClientTests : IDisposable
     var stats = await _apiClient.GetPomodoroStatsAsync();
 
     stats.Should().NotBeNull();
-    stats!.SessionsCompleted.Should().Be(10);
-    stats.TotalFocusMinutes.Should().Be(250.0);
-    stats.CurrentStreak.Should().Be(5);
+    stats!.CompletedSessions.Should().Be(10);
+    stats.TotalFocusTime.Should().Be(250);
+    stats.LongestStreak.Should().Be(5);
   }
 
   [Fact]
@@ -476,5 +448,265 @@ public class TaskNotesApiClientTests : IDisposable
 
     // HttpUtility.UrlEncode encodes spaces as + (form encoding)
     uri.Should().Contain("My+Task");
+  }
+
+  // --- NLP ---
+
+  [Fact]
+  public async Task ParseNlpAsync_ReturnsParsedResult()
+  {
+    var responseJson = """
+        {
+            "success": true,
+            "data": {
+                "title": "Buy groceries",
+                "due": "2025-01-20",
+                "priority": "2-high",
+                "tags": ["shopping"],
+                "timeEstimate": 30
+            }
+        }
+        """;
+    _mockHandler.SetupResponse("/api/nlp/parse", HttpStatusCode.OK, responseJson);
+
+    var result = await _apiClient.ParseNlpAsync("Buy groceries tomorrow high priority");
+
+    result.Should().NotBeNull();
+    result!.Title.Should().Be("Buy groceries");
+    result.Due.Should().Be("2025-01-20");
+    result.Priority.Should().Be("2-high");
+    result.Tags.Should().BeEquivalentTo(["shopping"]);
+    result.TimeEstimate.Should().Be(30);
+  }
+
+  [Fact]
+  public async Task ParseNlpAsync_ReturnsNull_WhenFailed()
+  {
+    _mockHandler.SetupResponse("/api/nlp/parse", HttpStatusCode.InternalServerError, "{\"success\": false}");
+
+    var result = await _apiClient.ParseNlpAsync("some text");
+
+    result.Should().BeNull();
+  }
+
+  [Fact]
+  public async Task CreateTaskFromNlpAsync_ReturnsCreatedTask()
+  {
+    var responseJson = """
+        {
+            "success": true,
+            "data": {
+                "path": "TaskNotes/Tasks/Buy groceries.md",
+                "title": "Buy groceries",
+                "status": "todo"
+            }
+        }
+        """;
+    _mockHandler.SetupResponse("/api/nlp/create", HttpStatusCode.OK, responseJson);
+
+    var task = await _apiClient.CreateTaskFromNlpAsync("Buy groceries tomorrow");
+
+    task.Should().NotBeNull();
+    task!.Title.Should().Be("Buy groceries");
+    task.Status.Should().Be("todo");
+  }
+
+  // --- Webhooks ---
+
+  [Fact]
+  public async Task CreateWebhookAsync_ReturnsWebhookConfig()
+  {
+    var responseJson = """
+        {
+            "success": true,
+            "data": {
+                "id": "wh-1",
+                "url": "https://example.com/hook",
+                "events": ["task.created", "task.completed"],
+                "active": true
+            }
+        }
+        """;
+    _mockHandler.SetupResponse("/api/webhooks", HttpStatusCode.OK, responseJson);
+
+    var config = new WebhookConfig
+    {
+      Url = "https://example.com/hook",
+      Events = ["task.created", "task.completed"],
+      Active = true
+    };
+
+    var result = await _apiClient.CreateWebhookAsync(config);
+
+    result.Should().NotBeNull();
+    result!.Id.Should().Be("wh-1");
+    result.Url.Should().Be("https://example.com/hook");
+    result.Events.Should().BeEquivalentTo(["task.created", "task.completed"]);
+  }
+
+  [Fact]
+  public async Task GetWebhooksAsync_ReturnsWebhookList()
+  {
+    var responseJson = """
+        {
+            "success": true,
+            "data": [
+                {"id": "wh-1", "url": "https://example.com/hook1", "events": ["task.created"], "active": true},
+                {"id": "wh-2", "url": "https://example.com/hook2", "events": ["task.completed"], "active": false}
+            ]
+        }
+        """;
+    _mockHandler.SetupResponse("/api/webhooks", HttpStatusCode.OK, responseJson);
+
+    var webhooks = await _apiClient.GetWebhooksAsync();
+
+    webhooks.Should().HaveCount(2);
+    webhooks[0].Id.Should().Be("wh-1");
+    webhooks[1].Active.Should().BeFalse();
+  }
+
+  [Fact]
+  public async Task DeleteWebhookAsync_ReturnsTrue_WhenSuccessful()
+  {
+    _mockHandler.SetupResponse("/api/webhooks/wh-1", HttpStatusCode.OK, "{\"success\": true}");
+
+    var result = await _apiClient.DeleteWebhookAsync("wh-1");
+
+    result.Should().BeTrue();
+  }
+
+  [Fact]
+  public async Task GetWebhookDeliveriesAsync_ReturnsDeliveries()
+  {
+    var responseJson = """
+        {
+            "success": true,
+            "data": [
+                {"id": "del-1", "webhookId": "wh-1", "event": "task.created", "status": "success", "statusCode": 200},
+                {"id": "del-2", "webhookId": "wh-1", "event": "task.completed", "status": "failed", "statusCode": 500}
+            ]
+        }
+        """;
+    _mockHandler.SetupResponse("/api/webhooks/deliveries", HttpStatusCode.OK, responseJson);
+
+    var deliveries = await _apiClient.GetWebhookDeliveriesAsync();
+
+    deliveries.Should().HaveCount(2);
+    deliveries[0].Status.Should().Be("success");
+    deliveries[1].Status.Should().Be("failed");
+    deliveries[1].StatusCode.Should().Be(500);
+  }
+
+  // --- Calendars ---
+
+  [Fact]
+  public async Task GetCalendarsAsync_ReturnsCalendarList()
+  {
+    var responseJson = """
+        {
+            "success": true,
+            "data": [
+                {"id": "cal-1", "name": "Work", "type": "google", "enabled": true},
+                {"id": "cal-2", "name": "Personal", "type": "local", "enabled": true}
+            ]
+        }
+        """;
+    _mockHandler.SetupResponse("/api/calendars", HttpStatusCode.OK, responseJson);
+
+    var calendars = await _apiClient.GetCalendarsAsync();
+
+    calendars.Should().HaveCount(2);
+    calendars[0].Name.Should().Be("Work");
+    calendars[0].Type.Should().Be("google");
+  }
+
+  [Fact]
+  public async Task GetGoogleCalendarEventsAsync_ReturnsEvents()
+  {
+    var responseJson = """
+        {
+            "success": true,
+            "data": [
+                {
+                    "id": "evt-1",
+                    "title": "Team Meeting",
+                    "start": "2025-01-15T09:00:00Z",
+                    "end": "2025-01-15T10:00:00Z",
+                    "allDay": false,
+                    "calendarId": "cal-1",
+                    "calendarName": "Work"
+                }
+            ]
+        }
+        """;
+    _mockHandler.SetupResponse("/api/calendars/google", HttpStatusCode.OK, responseJson);
+
+    var events = await _apiClient.GetGoogleCalendarEventsAsync();
+
+    events.Should().HaveCount(1);
+    events[0].Title.Should().Be("Team Meeting");
+    events[0].AllDay.Should().BeFalse();
+  }
+
+  [Fact]
+  public async Task GetMicrosoftCalendarEventsAsync_ReturnsEvents()
+  {
+    var responseJson = """
+        {
+            "success": true,
+            "data": [
+                {"id": "evt-2", "title": "Standup", "start": "2025-01-15T10:00:00Z", "end": "2025-01-15T10:15:00Z", "allDay": false}
+            ]
+        }
+        """;
+    _mockHandler.SetupResponse("/api/calendars/microsoft", HttpStatusCode.OK, responseJson);
+
+    var events = await _apiClient.GetMicrosoftCalendarEventsAsync();
+
+    events.Should().HaveCount(1);
+    events[0].Title.Should().Be("Standup");
+  }
+
+  [Fact]
+  public async Task GetCalendarSubscriptionsAsync_ReturnsSubscriptions()
+  {
+    var responseJson = """
+        {
+            "success": true,
+            "data": [
+                {"id": "sub-1", "name": "Team Calendar", "type": "ical", "enabled": true}
+            ]
+        }
+        """;
+    _mockHandler.SetupResponse("/api/calendars/subscriptions", HttpStatusCode.OK, responseJson);
+
+    var subs = await _apiClient.GetCalendarSubscriptionsAsync();
+
+    subs.Should().HaveCount(1);
+    subs[0].Type.Should().Be("ical");
+  }
+
+  [Fact]
+  public async Task GetCalendarEventsAsync_ReturnsEvents_WithQueryParams()
+  {
+    var responseJson = """
+        {
+            "success": true,
+            "data": [
+                {"id": "evt-3", "title": "All Hands", "start": "2025-01-20T14:00:00Z", "end": "2025-01-20T15:00:00Z", "allDay": false}
+            ]
+        }
+        """;
+    _mockHandler.SetupResponse(HttpStatusCode.OK, responseJson);
+
+    var events = await _apiClient.GetCalendarEventsAsync(start: "2025-01-20", end: "2025-01-21");
+
+    events.Should().HaveCount(1);
+    events[0].Title.Should().Be("All Hands");
+
+    _mockHandler.Requests.Should().HaveCount(1);
+    var requestUrl = _mockHandler.Requests[0].RequestUri?.ToString();
+    requestUrl.Should().Contain("start=2025-01-20");
+    requestUrl.Should().Contain("end=2025-01-21");
   }
 }

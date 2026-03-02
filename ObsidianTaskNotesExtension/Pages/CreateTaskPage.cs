@@ -84,8 +84,8 @@ internal sealed partial class CreateTaskFormContent : FormContent
                 {
                     "type": "Input.Text",
                     "id": "timeEstimate",
-                    "label": "Time Estimate",
-                    "placeholder": "e.g. 2h, 30m"
+                    "label": "Time Estimate (minutes)",
+                    "placeholder": "e.g. 30, 60, 120"
                 }
             ],
             "actions": [
@@ -116,7 +116,7 @@ internal sealed partial class CreateTaskFormContent : FormContent
             Tags = ParseCommaSeparated(formInput["tags"]?.GetValue<string>()),
             Projects = ParseCommaSeparated(formInput["projects"]?.GetValue<string>()),
             Details = NullIfEmpty(formInput["details"]?.GetValue<string>()),
-            TimeEstimate = NullIfEmpty(formInput["timeEstimate"]?.GetValue<string>()),
+            TimeEstimate = int.TryParse(formInput["timeEstimate"]?.GetValue<string>(), out var timeEstMins) ? timeEstMins : null,
         };
 
         _ = CreateAsync(request);

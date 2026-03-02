@@ -4,61 +4,80 @@
 
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using ObsidianTaskNotesExtension.Models;
 
 namespace ObsidianTaskNotesExtension.Models;
 
 public class PomodoroSession
 {
-    [JsonPropertyName("taskId")]
-    public string? TaskId { get; set; }
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
 
-    [JsonPropertyName("taskTitle")]
-    public string? TaskTitle { get; set; }
-
-    [JsonPropertyName("state")]
-    public string? State { get; set; }
-
-    [JsonPropertyName("timeRemaining")]
-    public int? TimeRemaining { get; set; }
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }  // work, short-break, long-break
 
     [JsonPropertyName("duration")]
-    public int? Duration { get; set; }
+    public int Duration { get; set; }  // seconds
 
-    [JsonPropertyName("startedAt")]
-    public string? StartedAt { get; set; }
+    [JsonPropertyName("startTime")]
+    public string? StartTime { get; set; }
 
-    [JsonPropertyName("completedAt")]
-    public string? CompletedAt { get; set; }
+    [JsonPropertyName("endTime")]
+    public string? EndTime { get; set; }
+
+    [JsonPropertyName("task")]
+    public TaskItem? Task { get; set; }
 }
 
 public class PomodoroStatus
 {
-    [JsonPropertyName("active")]
-    public bool Active { get; set; }
-
-    [JsonPropertyName("session")]
-    public PomodoroSession? Session { get; set; }
+    [JsonPropertyName("isRunning")]
+    public bool IsRunning { get; set; }
 
     [JsonPropertyName("timeRemaining")]
-    public int? TimeRemaining { get; set; }
+    public int TimeRemaining { get; set; }
 
-    [JsonPropertyName("statistics")]
-    public PomodoroStats? Statistics { get; set; }
-}
+    [JsonPropertyName("currentSession")]
+    public PomodoroSession? CurrentSession { get; set; }
 
-public class PomodoroStats
-{
-    [JsonPropertyName("sessionsCompleted")]
-    public int SessionsCompleted { get; set; }
+    [JsonPropertyName("nextSessionType")]
+    public string? NextSessionType { get; set; }
 
-    [JsonPropertyName("totalFocusMinutes")]
-    public double TotalFocusMinutes { get; set; }
+    [JsonPropertyName("totalPomodoros")]
+    public int TotalPomodoros { get; set; }
 
     [JsonPropertyName("currentStreak")]
     public int CurrentStreak { get; set; }
 
-    [JsonPropertyName("averageSessionMinutes")]
-    public double AverageSessionMinutes { get; set; }
+    [JsonPropertyName("totalMinutesToday")]
+    public int TotalMinutesToday { get; set; }
+}
+
+public class PomodoroStats
+{
+    [JsonPropertyName("totalSessions")]
+    public int TotalSessions { get; set; }
+
+    [JsonPropertyName("completedSessions")]
+    public int CompletedSessions { get; set; }
+
+    [JsonPropertyName("interruptedSessions")]
+    public int InterruptedSessions { get; set; }
+
+    [JsonPropertyName("totalFocusTime")]
+    public int TotalFocusTime { get; set; }  // minutes
+
+    [JsonPropertyName("workSessions")]
+    public int WorkSessions { get; set; }
+
+    [JsonPropertyName("breakSessions")]
+    public int BreakSessions { get; set; }
+
+    [JsonPropertyName("longestStreak")]
+    public int LongestStreak { get; set; }
+
+    [JsonPropertyName("averageSessionLength")]
+    public double AverageSessionLength { get; set; }
 }
 
 public class PomodoroStatusResponse

@@ -17,7 +17,7 @@ internal sealed partial class StatsPage : DynamicListPage
 {
     private readonly TaskNotesApiClient _apiClient;
     private TaskStats? _taskStats;
-    private TimeStats? _timeStats;
+    private TimeSummary? _timeSummary;
     private string? _errorMessage;
 
     public StatsPage(TaskNotesApiClient apiClient)
@@ -140,9 +140,9 @@ internal sealed partial class StatsPage : DynamicListPage
             });
         }
 
-        if (_timeStats != null)
+        if (_timeSummary?.Summary != null)
         {
-            var minutes = _timeStats.TotalMinutes;
+            var minutes = (double)_timeSummary.Summary.TotalMinutes;
             var timeTag = TagHelpers.CreateTimeTag(minutes, "Total");
 
             items.Add(new ListItem(new NoOpCommand())
@@ -194,7 +194,7 @@ internal sealed partial class StatsPage : DynamicListPage
         try
         {
             _taskStats = await _apiClient.GetStatsAsync();
-            _timeStats = await _apiClient.GetTimeStatsAsync();
+            _timeSummary = await _apiClient.GetTimeSummaryAsync();
 
             if (_taskStats == null)
             {
