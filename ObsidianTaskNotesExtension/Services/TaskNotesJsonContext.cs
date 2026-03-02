@@ -72,6 +72,22 @@ public class TaskIdRequest
 [JsonSerializable(typeof(DateRequest))]
 [JsonSerializable(typeof(TaskIdRequest))]
 [JsonSerializable(typeof(ExtensionSettings))]
+[JsonSerializable(typeof(NlpTextRequest))]
+[JsonSerializable(typeof(NlpParseResult))]
+[JsonSerializable(typeof(NlpParseResponse))]
+[JsonSerializable(typeof(WebhookConfig))]
+[JsonSerializable(typeof(List<WebhookConfig>))]
+[JsonSerializable(typeof(WebhookDelivery))]
+[JsonSerializable(typeof(List<WebhookDelivery>))]
+[JsonSerializable(typeof(WebhookResponse))]
+[JsonSerializable(typeof(WebhookListResponse))]
+[JsonSerializable(typeof(WebhookDeliveryListResponse))]
+[JsonSerializable(typeof(CalendarInfo))]
+[JsonSerializable(typeof(List<CalendarInfo>))]
+[JsonSerializable(typeof(CalendarEvent))]
+[JsonSerializable(typeof(List<CalendarEvent>))]
+[JsonSerializable(typeof(CalendarListResponse))]
+[JsonSerializable(typeof(CalendarEventsResponse))]
 internal sealed partial class TaskNotesJsonContext : JsonSerializerContext
 {
 }

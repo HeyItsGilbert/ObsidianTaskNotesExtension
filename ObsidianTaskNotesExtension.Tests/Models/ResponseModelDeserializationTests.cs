@@ -268,4 +268,152 @@ public class ResponseModelDeserializationTests
         response!.Success.Should().BeTrue();
         response.Data!.Tasks.Should().HaveCount(1);
     }
+
+    [Fact]
+    public void NlpParseResponse_DeserializesCorrectly()
+    {
+        var json = """
+        {
+            "success": true,
+            "data": {
+                "title": "Prepare report",
+                "due": "2025-01-20",
+                "priority": "1-urgent",
+                "tags": ["work", "report"],
+                "timeEstimate": 90,
+                "details": "Need financial data"
+            }
+        }
+        """;
+
+        var response = JsonSerializer.Deserialize<NlpParseResponse>(json, JsonOptions);
+
+        response.Should().NotBeNull();
+        response!.Success.Should().BeTrue();
+        response.Data.Should().NotBeNull();
+        response.Data!.Title.Should().Be("Prepare report");
+        response.Data.Due.Should().Be("2025-01-20");
+        response.Data.Priority.Should().Be("1-urgent");
+        response.Data.Tags.Should().BeEquivalentTo(["work", "report"]);
+        response.Data.TimeEstimate.Should().Be(90);
+        response.Data.Details.Should().Be("Need financial data");
+    }
+
+    [Fact]
+    public void WebhookListResponse_DeserializesCorrectly()
+    {
+        var json = """
+        {
+            "success": true,
+            "data": [
+                {
+                    "id": "wh-1",
+                    "url": "https://example.com/hook",
+                    "events": ["task.created", "task.completed"],
+                    "active": true,
+                    "corsHeaders": false
+                }
+            ]
+        }
+        """;
+
+        var response = JsonSerializer.Deserialize<WebhookListResponse>(json, JsonOptions);
+
+        response.Should().NotBeNull();
+        response!.Success.Should().BeTrue();
+        response.Data.Should().HaveCount(1);
+        response.Data![0].Id.Should().Be("wh-1");
+        response.Data[0].Url.Should().Be("https://example.com/hook");
+        response.Data[0].Events.Should().BeEquivalentTo(["task.created", "task.completed"]);
+        response.Data[0].Active.Should().BeTrue();
+        response.Data[0].CorsHeaders.Should().BeFalse();
+    }
+
+    [Fact]
+    public void WebhookDeliveryListResponse_DeserializesCorrectly()
+    {
+        var json = """
+        {
+            "success": true,
+            "data": [
+                {
+                    "id": "del-1",
+                    "webhookId": "wh-1",
+                    "event": "task.created",
+                    "status": "success",
+                    "statusCode": 200,
+                    "createdAt": "2025-01-15T10:05:00Z"
+                }
+            ]
+        }
+        """;
+
+        var response = JsonSerializer.Deserialize<WebhookDeliveryListResponse>(json, JsonOptions);
+
+        response.Should().NotBeNull();
+        response!.Success.Should().BeTrue();
+        response.Data.Should().HaveCount(1);
+        response.Data![0].Event.Should().Be("task.created");
+        response.Data[0].Status.Should().Be("success");
+        response.Data[0].StatusCode.Should().Be(200);
+    }
+
+    [Fact]
+    public void CalendarListResponse_DeserializesCorrectly()
+    {
+        var json = """
+        {
+            "success": true,
+            "data": [
+                {"id": "cal-1", "name": "Work", "type": "google", "color": "#4285F4", "enabled": true},
+                {"id": "cal-2", "name": "Personal", "type": "local", "enabled": false}
+            ]
+        }
+        """;
+
+        var response = JsonSerializer.Deserialize<CalendarListResponse>(json, JsonOptions);
+
+        response.Should().NotBeNull();
+        response!.Success.Should().BeTrue();
+        response.Data.Should().HaveCount(2);
+        response.Data![0].Name.Should().Be("Work");
+        response.Data[0].Type.Should().Be("google");
+        response.Data[0].Color.Should().Be("#4285F4");
+        response.Data[0].Enabled.Should().BeTrue();
+        response.Data[1].Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CalendarEventsResponse_DeserializesCorrectly()
+    {
+        var json = """
+        {
+            "success": true,
+            "data": [
+                {
+                    "id": "evt-1",
+                    "title": "Team Meeting",
+                    "start": "2025-01-15T09:00:00Z",
+                    "end": "2025-01-15T10:00:00Z",
+                    "allDay": false,
+                    "calendarId": "cal-1",
+                    "calendarName": "Work",
+                    "description": "Weekly sync",
+                    "location": "Conference Room A"
+                }
+            ]
+        }
+        """;
+
+        var response = JsonSerializer.Deserialize<CalendarEventsResponse>(json, JsonOptions);
+
+        response.Should().NotBeNull();
+        response!.Success.Should().BeTrue();
+        response.Data.Should().HaveCount(1);
+        response.Data![0].Title.Should().Be("Team Meeting");
+        response.Data[0].AllDay.Should().BeFalse();
+        response.Data[0].CalendarId.Should().Be("cal-1");
+        response.Data[0].Description.Should().Be("Weekly sync");
+        response.Data[0].Location.Should().Be("Conference Room A");
+    }
 }

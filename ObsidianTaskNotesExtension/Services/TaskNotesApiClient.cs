@@ -706,6 +706,261 @@ public partial class TaskNotesApiClient : IDisposable
         return $"obsidian://open?file={HttpUtility.UrlEncode(filePath)}";
     }
 
+    // --- NLP ---
+
+    public async Task<NlpParseResult?> ParseNlpAsync(string text)
+    {
+        try
+        {
+            ConfigureAuthHeader();
+            var url = $"{_settings.ApiBaseUrl}/api/nlp/parse";
+            var json = JsonSerializer.Serialize(new NlpTextRequest { Text = text }, TaskNotesJsonContext.Default.NlpTextRequest);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            Debug.WriteLine($"[TaskNotesApi] ParseNlp - URL: {url}");
+            var response = await _httpClient.PostAsync(url, content);
+
+            if (!response.IsSuccessStatusCode) return null;
+
+            var body = await response.Content.ReadAsStringAsync();
+            var result = DeserializeResponse(body, "ParseNlp", TaskNotesJsonContext.Default.NlpParseResponse);
+            return result?.Data;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TaskNotesApi] ParseNlp - Exception: {ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
+    }
+
+    public async Task<TaskItem?> CreateTaskFromNlpAsync(string text)
+    {
+        try
+        {
+            ConfigureAuthHeader();
+            var url = $"{_settings.ApiBaseUrl}/api/nlp/create";
+            var json = JsonSerializer.Serialize(new NlpTextRequest { Text = text }, TaskNotesJsonContext.Default.NlpTextRequest);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            Debug.WriteLine($"[TaskNotesApi] CreateTaskFromNlp - URL: {url}");
+            var response = await _httpClient.PostAsync(url, content);
+
+            if (!response.IsSuccessStatusCode) return null;
+
+            var body = await response.Content.ReadAsStringAsync();
+            var result = DeserializeResponse(body, "CreateTaskFromNlp", TaskNotesJsonContext.Default.SingleTaskResponse);
+            return result?.Data;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TaskNotesApi] CreateTaskFromNlp - Exception: {ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
+    }
+
+    // --- Webhooks ---
+
+    public async Task<WebhookConfig?> CreateWebhookAsync(WebhookConfig config)
+    {
+        try
+        {
+            ConfigureAuthHeader();
+            var url = $"{_settings.ApiBaseUrl}/api/webhooks";
+            var json = JsonSerializer.Serialize(config, TaskNotesJsonContext.Default.WebhookConfig);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            Debug.WriteLine($"[TaskNotesApi] CreateWebhook - URL: {url}");
+            var response = await _httpClient.PostAsync(url, content);
+
+            if (!response.IsSuccessStatusCode) return null;
+
+            var body = await response.Content.ReadAsStringAsync();
+            var result = DeserializeResponse(body, "CreateWebhook", TaskNotesJsonContext.Default.WebhookResponse);
+            return result?.Data;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TaskNotesApi] CreateWebhook - Exception: {ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
+    }
+
+    public async Task<List<WebhookConfig>> GetWebhooksAsync()
+    {
+        try
+        {
+            ConfigureAuthHeader();
+            var url = $"{_settings.ApiBaseUrl}/api/webhooks";
+            Debug.WriteLine($"[TaskNotesApi] GetWebhooks - URL: {url}");
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode) return new List<WebhookConfig>();
+
+            var body = await response.Content.ReadAsStringAsync();
+            var result = DeserializeResponse(body, "GetWebhooks", TaskNotesJsonContext.Default.WebhookListResponse);
+            return result?.Data ?? new List<WebhookConfig>();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TaskNotesApi] GetWebhooks - Exception: {ex.GetType().Name}: {ex.Message}");
+            return new List<WebhookConfig>();
+        }
+    }
+
+    public async Task<bool> DeleteWebhookAsync(string id)
+    {
+        try
+        {
+            ConfigureAuthHeader();
+            var encodedId = Uri.EscapeDataString(id);
+            var url = $"{_settings.ApiBaseUrl}/api/webhooks/{encodedId}";
+            Debug.WriteLine($"[TaskNotesApi] DeleteWebhook - URL: {url}");
+            var response = await _httpClient.DeleteAsync(url);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TaskNotesApi] DeleteWebhook - Exception: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<List<WebhookDelivery>> GetWebhookDeliveriesAsync()
+    {
+        try
+        {
+            ConfigureAuthHeader();
+            var url = $"{_settings.ApiBaseUrl}/api/webhooks/deliveries";
+            Debug.WriteLine($"[TaskNotesApi] GetWebhookDeliveries - URL: {url}");
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode) return new List<WebhookDelivery>();
+
+            var body = await response.Content.ReadAsStringAsync();
+            var result = DeserializeResponse(body, "GetWebhookDeliveries", TaskNotesJsonContext.Default.WebhookDeliveryListResponse);
+            return result?.Data ?? new List<WebhookDelivery>();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TaskNotesApi] GetWebhookDeliveries - Exception: {ex.GetType().Name}: {ex.Message}");
+            return new List<WebhookDelivery>();
+        }
+    }
+
+    // --- Calendars ---
+
+    public async Task<List<CalendarInfo>> GetCalendarsAsync()
+    {
+        try
+        {
+            ConfigureAuthHeader();
+            var url = $"{_settings.ApiBaseUrl}/api/calendars";
+            Debug.WriteLine($"[TaskNotesApi] GetCalendars - URL: {url}");
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode) return new List<CalendarInfo>();
+
+            var body = await response.Content.ReadAsStringAsync();
+            var result = DeserializeResponse(body, "GetCalendars", TaskNotesJsonContext.Default.CalendarListResponse);
+            return result?.Data ?? new List<CalendarInfo>();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TaskNotesApi] GetCalendars - Exception: {ex.GetType().Name}: {ex.Message}");
+            return new List<CalendarInfo>();
+        }
+    }
+
+    public async Task<List<CalendarEvent>> GetGoogleCalendarEventsAsync()
+    {
+        try
+        {
+            ConfigureAuthHeader();
+            var url = $"{_settings.ApiBaseUrl}/api/calendars/google";
+            Debug.WriteLine($"[TaskNotesApi] GetGoogleCalendarEvents - URL: {url}");
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode) return new List<CalendarEvent>();
+
+            var body = await response.Content.ReadAsStringAsync();
+            var result = DeserializeResponse(body, "GetGoogleCalendarEvents", TaskNotesJsonContext.Default.CalendarEventsResponse);
+            return result?.Data ?? new List<CalendarEvent>();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TaskNotesApi] GetGoogleCalendarEvents - Exception: {ex.GetType().Name}: {ex.Message}");
+            return new List<CalendarEvent>();
+        }
+    }
+
+    public async Task<List<CalendarEvent>> GetMicrosoftCalendarEventsAsync()
+    {
+        try
+        {
+            ConfigureAuthHeader();
+            var url = $"{_settings.ApiBaseUrl}/api/calendars/microsoft";
+            Debug.WriteLine($"[TaskNotesApi] GetMicrosoftCalendarEvents - URL: {url}");
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode) return new List<CalendarEvent>();
+
+            var body = await response.Content.ReadAsStringAsync();
+            var result = DeserializeResponse(body, "GetMicrosoftCalendarEvents", TaskNotesJsonContext.Default.CalendarEventsResponse);
+            return result?.Data ?? new List<CalendarEvent>();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TaskNotesApi] GetMicrosoftCalendarEvents - Exception: {ex.GetType().Name}: {ex.Message}");
+            return new List<CalendarEvent>();
+        }
+    }
+
+    public async Task<List<CalendarInfo>> GetCalendarSubscriptionsAsync()
+    {
+        try
+        {
+            ConfigureAuthHeader();
+            var url = $"{_settings.ApiBaseUrl}/api/calendars/subscriptions";
+            Debug.WriteLine($"[TaskNotesApi] GetCalendarSubscriptions - URL: {url}");
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode) return new List<CalendarInfo>();
+
+            var body = await response.Content.ReadAsStringAsync();
+            var result = DeserializeResponse(body, "GetCalendarSubscriptions", TaskNotesJsonContext.Default.CalendarListResponse);
+            return result?.Data ?? new List<CalendarInfo>();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TaskNotesApi] GetCalendarSubscriptions - Exception: {ex.GetType().Name}: {ex.Message}");
+            return new List<CalendarInfo>();
+        }
+    }
+
+    public async Task<List<CalendarEvent>> GetCalendarEventsAsync(string? calendarId = null, string? start = null, string? end = null)
+    {
+        try
+        {
+            ConfigureAuthHeader();
+            var queryParams = new List<string>();
+            if (!string.IsNullOrEmpty(calendarId)) queryParams.Add($"calendarId={HttpUtility.UrlEncode(calendarId)}");
+            if (!string.IsNullOrEmpty(start)) queryParams.Add($"start={HttpUtility.UrlEncode(start)}");
+            if (!string.IsNullOrEmpty(end)) queryParams.Add($"end={HttpUtility.UrlEncode(end)}");
+            var query = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
+            var url = $"{_settings.ApiBaseUrl}/api/calendars/events{query}";
+            Debug.WriteLine($"[TaskNotesApi] GetCalendarEvents - URL: {url}");
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode) return new List<CalendarEvent>();
+
+            var body = await response.Content.ReadAsStringAsync();
+            var result = DeserializeResponse(body, "GetCalendarEvents", TaskNotesJsonContext.Default.CalendarEventsResponse);
+            return result?.Data ?? new List<CalendarEvent>();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[TaskNotesApi] GetCalendarEvents - Exception: {ex.GetType().Name}: {ex.Message}");
+            return new List<CalendarEvent>();
+        }
+    }
+
     public void Dispose()
     {
         _httpClient.Dispose();
