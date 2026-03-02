@@ -137,7 +137,7 @@ internal sealed partial class TaskDetailPage : DynamicListPage
             items.Add(new ListItem(new NoOpCommand())
             {
                 Title = "Time Tracked",
-                Subtitle = $"{_timeData.Summary.EntryCount} entries",
+                Subtitle = $"{_timeData.Summary.TotalSessions} entries",
                 Icon = new IconInfo("\uE823"), // Clock icon
                 Tags = [timeTag]
             });
@@ -148,7 +148,7 @@ internal sealed partial class TaskDetailPage : DynamicListPage
             items.Add(new ListItem(new StopTimeTrackingCommand(_task, _apiClient, Refresh))
             {
                 Title = "⏱️ Active Timer",
-                Subtitle = $"Started: {_timeData.ActiveSession.Start}",
+                Subtitle = $"Started: {_timeData.ActiveSession.StartTime}",
                 Icon = new IconInfo("\uE71A"), // Stop icon
                 Tags = [TagHelpers.CreateActiveTag("Running")]
             });

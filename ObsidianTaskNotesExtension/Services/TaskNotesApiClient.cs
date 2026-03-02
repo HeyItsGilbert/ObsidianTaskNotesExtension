@@ -535,33 +535,6 @@ public partial class TaskNotesApiClient : IDisposable
         }
     }
 
-    public async Task<TimeStats?> GetTimeStatsAsync(string? range = null, string? start = null, string? end = null)
-    {
-        try
-        {
-            ConfigureAuthHeader();
-            var queryParams = new List<string>();
-            if (!string.IsNullOrEmpty(range)) queryParams.Add($"range={HttpUtility.UrlEncode(range)}");
-            if (!string.IsNullOrEmpty(start)) queryParams.Add($"start={HttpUtility.UrlEncode(start)}");
-            if (!string.IsNullOrEmpty(end)) queryParams.Add($"end={HttpUtility.UrlEncode(end)}");
-            var query = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
-            var url = $"{_settings.ApiBaseUrl}/api/time-stats{query}";
-            Debug.WriteLine($"[TaskNotesApi] GetTimeStats - URL: {url}");
-            var response = await _httpClient.GetAsync(url);
-
-            if (!response.IsSuccessStatusCode) return null;
-
-            var body = await response.Content.ReadAsStringAsync();
-            var result = DeserializeResponse(body, "GetTimeStats", TaskNotesJsonContext.Default.TimeStatsResponse);
-            return result?.Data;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[TaskNotesApi] GetTimeStats - Exception: {ex.GetType().Name}: {ex.Message}");
-            return null;
-        }
-    }
-
     // --- Pomodoro ---
 
     public async Task<PomodoroSession?> StartPomodoroAsync(string? taskId = null)

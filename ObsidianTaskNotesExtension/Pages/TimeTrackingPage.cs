@@ -61,8 +61,8 @@ internal sealed partial class TimeTrackingPage : DynamicListPage
 
                 items.Add(new ListItem(new NoOpCommand())
                 {
-                    Title = $"⏱️ {session.TaskTitle ?? session.TaskId ?? "Unknown Task"}",
-                    Subtitle = session.Description ?? $"Started: {session.Start}",
+                    Title = $"⏱️ {session.Task?.Title ?? session.Task?.Id ?? "Unknown Task"}",
+                    Subtitle = session.Session?.Description ?? $"Started: {session.Session?.StartTime}",
                     Icon = new IconInfo("\uE916"), // Play icon
                     Tags = sessionTags.ToArray()
                 });

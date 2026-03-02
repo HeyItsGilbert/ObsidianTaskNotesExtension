@@ -290,57 +290,21 @@ public class TaskNotesApiClientTests : IDisposable
   }
 
   [Fact]
-  public async Task GetTimeStatsAsync_ReturnsTimeStats()
-  {
-    var responseJson = """
-        {
-            "success": true,
-            "data": {
-                "totalMinutes": 360.5
-            }
-        }
-        """;
-    _mockHandler.SetupResponse("/api/time-stats", HttpStatusCode.OK, responseJson);
-
-    var stats = await _apiClient.GetTimeStatsAsync();
-
-    stats.Should().NotBeNull();
-    stats!.TotalMinutes.Should().Be(360.5);
-  }
-
-  [Fact]
-  public async Task GetTimeStatsAsync_IncludesQueryParameters()
-  {
-    var responseJson = """
-        {
-            "success": true,
-            "data": {
-                "totalMinutes": 120.0
-            }
-        }
-        """;
-    _mockHandler.SetupResponse(HttpStatusCode.OK, responseJson);
-
-    await _apiClient.GetTimeStatsAsync(range: "week", start: "2025-01-01", end: "2025-01-07");
-
-    _mockHandler.Requests.Should().HaveCount(1);
-    var requestUrl = _mockHandler.Requests[0].RequestUri?.ToString();
-    requestUrl.Should().Contain("range=week");
-    requestUrl.Should().Contain("start=2025-01-01");
-    requestUrl.Should().Contain("end=2025-01-07");
-  }
-
-  [Fact]
   public async Task StartPomodoroAsync_ReturnsSession()
   {
     var responseJson = """
         {
             "success": true,
             "data": {
-                "taskId": "test.md",
-                "state": "active",
-                "timeRemaining": 1500,
-                "duration": 1500
+                "id": "session-1",
+                "type": "work",
+                "duration": 1500,
+                "startTime": "2025-01-15T10:00:00Z",
+                "task": {
+                    "path": "test.md",
+                    "title": "Test Task",
+                    "status": "todo"
+                }
             }
         }
         """;
@@ -349,8 +313,8 @@ public class TaskNotesApiClientTests : IDisposable
     var session = await _apiClient.StartPomodoroAsync("test.md");
 
     session.Should().NotBeNull();
-    session!.State.Should().Be("active");
-    session.TimeRemaining.Should().Be(1500);
+    session!.Type.Should().Be("work");
+    session.Duration.Should().Be(1500);
   }
 
   [Fact]
@@ -390,13 +354,17 @@ public class TaskNotesApiClientTests : IDisposable
         {
             "success": true,
             "data": {
-                "active": true,
-                "session": {
-                    "taskId": "test.md",
-                    "state": "active",
-                    "timeRemaining": 1200
+                "isRunning": true,
+                "timeRemaining": 1200,
+                "currentSession": {
+                    "id": "session-1",
+                    "type": "work",
+                    "duration": 1500,
+                    "startTime": "2025-01-15T10:00:00Z"
                 },
-                "timeRemaining": 1200
+                "currentStreak": 3,
+                "totalPomodoros": 10,
+                "totalMinutesToday": 75
             }
         }
         """;
@@ -405,7 +373,7 @@ public class TaskNotesApiClientTests : IDisposable
     var status = await _apiClient.GetPomodoroStatusAsync();
 
     status.Should().NotBeNull();
-    status!.Active.Should().BeTrue();
+    status!.IsRunning.Should().BeTrue();
     status.TimeRemaining.Should().Be(1200);
   }
 
@@ -417,8 +385,8 @@ public class TaskNotesApiClientTests : IDisposable
             "success": true,
             "data": {
                 "sessions": [
-                    {"taskId": "task1.md", "state": "completed"},
-                    {"taskId": "task2.md", "state": "completed"}
+                    {"id": "s1", "type": "work", "duration": 1500, "startTime": "2025-01-15T09:00:00Z"},
+                    {"id": "s2", "type": "work", "duration": 1500, "startTime": "2025-01-15T10:00:00Z"}
                 ],
                 "total": 2
             }
@@ -438,10 +406,14 @@ public class TaskNotesApiClientTests : IDisposable
         {
             "success": true,
             "data": {
-                "sessionsCompleted": 10,
-                "totalFocusMinutes": 250.0,
-                "currentStreak": 5,
-                "averageSessionMinutes": 25.0
+                "totalSessions": 12,
+                "completedSessions": 10,
+                "interruptedSessions": 2,
+                "totalFocusTime": 250,
+                "workSessions": 10,
+                "breakSessions": 2,
+                "longestStreak": 5,
+                "averageSessionLength": 25.0
             }
         }
         """;
@@ -450,9 +422,9 @@ public class TaskNotesApiClientTests : IDisposable
     var stats = await _apiClient.GetPomodoroStatsAsync();
 
     stats.Should().NotBeNull();
-    stats!.SessionsCompleted.Should().Be(10);
-    stats.TotalFocusMinutes.Should().Be(250.0);
-    stats.CurrentStreak.Should().Be(5);
+    stats!.CompletedSessions.Should().Be(10);
+    stats.TotalFocusTime.Should().Be(250);
+    stats.LongestStreak.Should().Be(5);
   }
 
   [Fact]

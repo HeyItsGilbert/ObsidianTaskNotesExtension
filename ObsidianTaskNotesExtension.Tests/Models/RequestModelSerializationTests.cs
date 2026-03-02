@@ -28,7 +28,7 @@ public class RequestModelSerializationTests
       Projects = ["ProjectA"],
       Contexts = ["@office"],
       Details = "Task details here",
-      TimeEstimate = "2h"
+      TimeEstimate = 120
     };
 
     var json = JsonSerializer.Serialize(request, JsonOptions);
@@ -43,7 +43,7 @@ public class RequestModelSerializationTests
     root.GetProperty("projects").GetArrayLength().Should().Be(1);
     root.GetProperty("contexts").GetArrayLength().Should().Be(1);
     root.GetProperty("details").GetString().Should().Be("Task details here");
-    root.GetProperty("timeEstimate").GetString().Should().Be("2h");
+    root.GetProperty("timeEstimate").GetInt32().Should().Be(120);
   }
 
   [Fact]
@@ -97,7 +97,7 @@ public class RequestModelSerializationTests
       Projects = ["MainProject"],
       Contexts = ["@home"],
       Details = "Updated details",
-      TimeEstimate = "4h"
+      TimeEstimate = 240
     };
 
     var json = JsonSerializer.Serialize(request, JsonOptions);
@@ -113,6 +113,6 @@ public class RequestModelSerializationTests
     root.GetProperty("projects").GetArrayLength().Should().Be(1);
     root.GetProperty("contexts").GetArrayLength().Should().Be(1);
     root.GetProperty("details").GetString().Should().Be("Updated details");
-    root.GetProperty("timeEstimate").GetString().Should().Be("4h");
+    root.GetProperty("timeEstimate").GetInt32().Should().Be(240);
   }
 }
