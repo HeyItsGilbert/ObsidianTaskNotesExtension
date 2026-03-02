@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.4.0] 2026-03-02
+
+### Added
+
+- WinGet manifest update workflow for automated manifest updates on
+  release publish with dynamic version and tag information retrieval
+- NLP parsing and task creation methods in TaskNotesApiClient
+- NLP and Webhook model support (NlpParseResponse, WebhookConfig)
+- New API endpoints for managing webhooks and calendar events
+
+### Changed
+
+- Updated models to comply with OpenAPI JSON specification:
+  Pomodoro, TimeTracking, Stats, and TaskItem models restructured
+- Publisher name updated to "Hey! It's Gilbert!" in package manifest
+- Enhanced JSON serialization context to support new models
+
 ## [0.3.0] 2026-02-27
 
 ### Added
