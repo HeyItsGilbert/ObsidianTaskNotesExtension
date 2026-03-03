@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `build-exe.ps1` standalone script for building self-contained EXE installers,
+  used directly by GitHub Actions to produce WinGet-ready packages
+- `.github/workflows/release-extension.yml` — manual workflow that builds x64
+  and ARM64 EXE installers via Inno Setup and publishes a GitHub Release
+- `.github/workflows/update-winget.yml` — workflow that automatically submits
+  an updated WinGet manifest via `wingetcreate` whenever a GitHub Release is
+  published (or can be triggered manually)
+
+### Changed
+
+- `ObsidianTaskNotesExtension.csproj`: added `<WindowsPackageType>None</WindowsPackageType>`
+  per the WinGet publishing guide so the EXE publish path is free of MSIX tooling
+  interference; removed the now-redundant conditional `PublishProfile`
+- `psakefile.ps1`: `Publish` task now passes `--self-contained true` so that
+  the published output is a standalone, framework-independent executable
+
 ## [0.4.0] 2026-03-02
 
 ### Added

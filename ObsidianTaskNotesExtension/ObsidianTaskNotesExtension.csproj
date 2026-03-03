@@ -13,6 +13,8 @@
     <AppxPackagePublisher>CN=65EACEA0-8D69-4D44-9669-A9E55A15A082</AppxPackagePublisher>
     <!-- Version for release builds and installer naming -->
     <AppxPackageVersion>0.4.0.0</AppxPackageVersion>
+    <!-- Disable MSIX packaging for EXE/WinGet distribution path -->
+    <WindowsPackageType>None</WindowsPackageType>
 
     <!-- Only enable MSIX when Platform is explicitly set (not AnyCPU) -->
     <EnableMsixTooling Condition="'$(Platform)' != '' AND '$(Platform)' != 'AnyCPU'">true</EnableMsixTooling>
@@ -105,9 +107,6 @@
     <PublishTrimmed Condition="'$(RuntimeIdentifier)'!=''">true</PublishTrimmed>
     <!-- Only enable single file publishing when RuntimeIdentifier is specified (during publish) -->
     <PublishSingleFile Condition="'$(RuntimeIdentifier)'!=''">true</PublishSingleFile>
-    <!-- Set publish profile only when RuntimeIdentifier is specified (during publish operations) -->
-    <PublishProfile Condition="'$(RuntimeIdentifier)'!=''">win-$([System.String]::Copy('$(RuntimeIdentifier)').Replace('win-', '')).pubxml</PublishProfile>
-
     <!-- In release, also ignore the aforementioned ILLink warning -->
     <ILLinkTreatWarningsAsErrors>false</ILLinkTreatWarningsAsErrors>
   </PropertyGroup>

@@ -21,7 +21,13 @@
         "innosetup",
         "CICD",
         "mindsers",
-        "iscc"
+        "iscc",
+        "winget",
+        "wingetcreate",
+        "msixbundle",
+        "makeappx",
+        "appxmanifest",
+        "pubxml"
     ],
     "import": []
 }

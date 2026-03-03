@@ -1,0 +1,105 @@
+# Automatically submit an updated WinGet manifest when a GitHub Release is
+# published, or run manually to update a specific version.
+#
+# First-time submission must be done manually with:
+#   wingetcreate new "<x64-installer-url>" "<arm64-installer-url>"
+#
+# WinGet manifest requirements for Command Palette extensions:
+#   .locale.*.yaml  must include:
+#     Tags:
+#     - windows-commandpalette-extension
+#
+#   .installer.yaml must include:
+#     Dependencies:
+#       PackageDependencies:
+#       - PackageIdentifier: Microsoft.WindowsAppRuntime.1.6
+#
+# The WinGet package identifier for this extension is:
+#   HeyItsGilbert.ObsidianTaskNotesExtension
+
+name: Update WinGet - ObsidianTaskNotesExtension
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g. 0.4.0.0)'
+        required: false
+        type: string
+      release_tag:
+        description: 'Release tag (e.g. ObsidianTaskNotesExtension-v0.4.0.0)'
+        required: false
+        type: string
+
+env:
+  EXTENSION_NAME:   'ObsidianTaskNotesExtension'
+  GITHUB_USER_NAME: 'HeyItsGilbert'
+  GITHUB_REPO:      'ObsidianTaskNotesExtension'
+  WINGET_PACKAGE_ID: 'HeyItsGilbert.ObsidianTaskNotesExtension'
+
+jobs:
+  update-winget:
+    # Only run for releases that match this extension, or on manual dispatch.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.release.name, 'Obsidian Task Notes')
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Resolve release info
+        id: release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ inputs.version }}" -ne "") {
+            $version = "${{ inputs.version }}"
+            $tag     = "${{ inputs.release_tag }}"
+          } elseif ("${{ github.event_name }}" -eq "release") {
+            $tag     = "${{ github.event.release.tag_name }}"
+            $version = $tag -replace "${{ env.EXTENSION_NAME }}-v", ""
+          } else {
+            # Fallback: pick the latest matching release
+            $latest  = gh release list --limit 10 --json tagName,name |
+                       ConvertFrom-Json |
+                       Where-Object { $_.name -like "Obsidian Task Notes*" } |
+                       Select-Object -First 1
+            $tag     = $latest.tagName
+            $version = $tag -replace "${{ env.EXTENSION_NAME }}-v", ""
+          }
+
+          Write-Host "Version : $version"
+          Write-Host "Tag     : $tag"
+          "VERSION=$version" >> $env:GITHUB_OUTPUT
+          "TAG=$tag"         >> $env:GITHUB_OUTPUT
+
+      - name: Install wingetcreate
+        shell: pwsh
+        run: |
+          iwr https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+
+      - name: Submit WinGet manifest update
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version  = "${{ steps.release.outputs.VERSION }}"
+          $tag      = "${{ steps.release.outputs.TAG }}"
+          $baseUrl  = "https://github.com/${{ env.GITHUB_USER_NAME }}/${{ env.GITHUB_REPO }}/releases/download/$tag"
+
+          $x64Url   = "$baseUrl/${{ env.EXTENSION_NAME }}-Setup-$version-x64.exe"
+          $arm64Url = "$baseUrl/${{ env.EXTENSION_NAME }}-Setup-$version-arm64.exe"
+
+          Write-Host "x64   : $x64Url"
+          Write-Host "ARM64 : $arm64Url"
+
+          .\wingetcreate.exe update ${{ env.WINGET_PACKAGE_ID }} `
+            --version $version `
+            --urls "$x64Url|x64" "$arm64Url|arm64" `
+            --token $env:GITHUB_TOKEN `
+            --submit

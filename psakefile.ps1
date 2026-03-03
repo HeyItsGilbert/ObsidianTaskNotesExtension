@@ -82,6 +82,7 @@ Task Publish -Depends BuildRelease -Description "Publish Release build" {
       'publish', $csprojPath
       '--configuration', 'Release'
       '--runtime', $runtime
+      '--self-contained', 'true'
       '--verbosity', 'normal'
     )
     & dotnet @dotnetArgs
