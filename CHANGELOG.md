@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.4.1] 2026-03-09
+
+### Changed
+
+- Package display name updated to
+  "Task Notes Command Palette for Obsidian" per Microsoft Store
+  requirements (affects Command Palette UI, manifest, and installer)
+- `build.ps1` enhanced with tab completion for psake tasks and
+  PSScriptAnalyzer suppression attributes for false positives
+
+### Removed
+
+- WinGet manifest update workflow (`winget.yml`)
+- Old `UpdateChangelog.prompt.md` prompt (renamed to
+  `UpdateChangelogAndVersion.prompt.md`)
+
 ## [0.4.0] 2026-03-02
 
 ### Added

@@ -5,7 +5,7 @@
 
 #define AppVersion "0.0.1.0"
 #define ExtensionName "ObsidianTaskNotesExtension"
-#define DisplayName "Obsidian Task Notes"
+#define DisplayName "Task Notes Command Palette for Obsidian"
 #define DeveloperName "HeyItsGilbert"
 #define CLSID "25569750-3959-414b-891f-727b292ff830"
 
