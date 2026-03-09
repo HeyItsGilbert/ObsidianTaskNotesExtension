@@ -17,7 +17,7 @@ public partial class ObsidianTaskNotesExtensionCommandsProvider : CommandProvide
 
     public ObsidianTaskNotesExtensionCommandsProvider()
     {
-        DisplayName = "Obsidian Task Notes";
+        DisplayName = "Task Notes Command Palette for Obsidian";
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
 
         // Initialize shared services
