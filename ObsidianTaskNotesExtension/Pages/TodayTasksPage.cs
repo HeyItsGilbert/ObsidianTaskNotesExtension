@@ -156,7 +156,8 @@ internal sealed partial class TodayTasksPage : DynamicListPage
             return "Scheduled today";
         }
 
-        return "Today";
+        // Fallback: under the TodayTasksPage filter, this path should not be hit.
+        return string.Empty;
     }
 
     private static IconInfo GetPriorityIcon(TaskItem task)
