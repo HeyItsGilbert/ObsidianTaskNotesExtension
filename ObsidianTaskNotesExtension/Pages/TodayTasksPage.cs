@@ -129,6 +129,18 @@ internal sealed partial class TodayTasksPage : DynamicListPage
 
     private static string FormatTodaySubtitle(TaskItem task)
     {
+        // Always surface overdue status first, even if the task is also scheduled or due today.
+        if (task.IsOverdue)
+        {
+            // Special-case: make it clear this overdue task is part of today's schedule.
+            if (task.IsScheduledToday)
+            {
+                return "Overdue (scheduled today)";
+            }
+
+            return "Overdue";
+        }
+
         if (task.IsDueToday && task.IsScheduledToday)
         {
             return "Due and scheduled today";
