@@ -42,6 +42,30 @@ public class TaskItemTests
   }
 
   [Theory]
+  [InlineData("2025-01-15", 2025, 1, 15)]
+  [InlineData("2024-12-31", 2024, 12, 31)]
+  public void ScheduledDate_ParsesValidDateString(string scheduled, int year, int month, int day)
+  {
+    var task = new TaskItem { Scheduled = scheduled };
+
+    task.ScheduledDate.Should().NotBeNull();
+    task.ScheduledDate!.Value.Year.Should().Be(year);
+    task.ScheduledDate!.Value.Month.Should().Be(month);
+    task.ScheduledDate!.Value.Day.Should().Be(day);
+  }
+
+  [Theory]
+  [InlineData(null)]
+  [InlineData("")]
+  [InlineData("invalid-date")]
+  public void ScheduledDate_ReturnsNullForInvalidDates(string? scheduled)
+  {
+    var task = new TaskItem { Scheduled = scheduled };
+
+    task.ScheduledDate.Should().BeNull();
+  }
+
+  [Theory]
   [InlineData("done", true)]
   [InlineData("Done", true)]
   [InlineData("DONE", true)]
@@ -148,6 +172,28 @@ public class TaskItemTests
     };
 
     task.IsDueToday.Should().BeFalse();
+  }
+
+  [Fact]
+  public void IsScheduledToday_ReturnsTrueForTodaysScheduledDate()
+  {
+    var task = new TaskItem
+    {
+      Scheduled = DateTime.Today.ToString("yyyy-MM-dd")
+    };
+
+    task.IsScheduledToday.Should().BeTrue();
+  }
+
+  [Fact]
+  public void IsScheduledToday_ReturnsFalseForOtherDates()
+  {
+    var task = new TaskItem
+    {
+      Scheduled = DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")
+    };
+
+    task.IsScheduledToday.Should().BeFalse();
   }
 
   [Fact]
