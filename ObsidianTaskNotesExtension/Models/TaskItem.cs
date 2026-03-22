@@ -78,6 +78,9 @@ public class TaskItem
     public DateTime? Due => DateTime.TryParse(DueString, out var d) ? d : null;
 
     [JsonIgnore]
+    public DateTime? ScheduledDate => DateTime.TryParse(Scheduled, out var d) ? d : null;
+
+    [JsonIgnore]
     public bool Completed => Status.Equals("done", StringComparison.OrdinalIgnoreCase)
                           || Status.Equals("completed", StringComparison.OrdinalIgnoreCase);
 
@@ -87,6 +90,8 @@ public class TaskItem
     public bool IsOverdue => Due.HasValue && Due.Value.Date < DateTime.Today && !Completed;
 
     public bool IsDueToday => Due.HasValue && Due.Value.Date == DateTime.Today;
+
+    public bool IsScheduledToday => ScheduledDate.HasValue && ScheduledDate.Value.Date == DateTime.Today;
 
     public bool IsDueTomorrow => Due.HasValue && Due.Value.Date == DateTime.Today.AddDays(1);
 

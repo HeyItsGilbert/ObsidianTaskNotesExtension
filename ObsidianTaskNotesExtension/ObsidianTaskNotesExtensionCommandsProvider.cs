@@ -26,6 +26,7 @@ public partial class ObsidianTaskNotesExtensionCommandsProvider : CommandProvide
 
         // Create pages
         var tasksPage = new ObsidianTaskNotesExtensionPage(_apiClient);
+        var todayTasksPage = new TodayTasksPage(_apiClient);
         var allTasksPage = new AllTasksPage(_apiClient);
         var createTaskPage = new CreateTaskPage(_apiClient);
         var statsPage = new StatsPage(_apiClient);
@@ -39,6 +40,11 @@ public partial class ObsidianTaskNotesExtensionCommandsProvider : CommandProvide
             {
                 Title = "Obsidian Tasks",
                 Subtitle = "View and manage your TaskNotes tasks"
+            },
+            new CommandItem(todayTasksPage)
+            {
+                Title = "Obsidian Today Tasks",
+                Subtitle = "View open tasks due or scheduled for today"
             },
             new CommandItem(allTasksPage)
             {
