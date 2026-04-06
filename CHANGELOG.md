@@ -5,7 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.4.1] 2026-03-09
+## [Unreleased]
+
+## [0.5.0] - 2026-04-06
+
+### Added
+
+- Daily Tasks view showing tasks scheduled or due today,
+  with support for the new Dock feature (#11)
+- Version display on the Settings page for easier
+  troubleshooting
+- Debug build indicator: distinct icon and "(Debug)" version
+  suffix in debug builds
+
+### Fixed
+
+- Create Task crash: plugin crashed after successfully
+  creating a task due to unhandled async exception and
+  invalid GoBack navigation from a top-level form page;
+  now shows a "Task created!" toast and dismisses cleanly
+- Edit Task: added defensive error handling to prevent
+  potential unobserved async exceptions
+
+### Changed
+
+- Assembly version now derived from AppxPackageVersion in
+  the csproj for consistent runtime version reporting
+
+## [0.4.1] - 2026-03-09
 
 ### Changed
 

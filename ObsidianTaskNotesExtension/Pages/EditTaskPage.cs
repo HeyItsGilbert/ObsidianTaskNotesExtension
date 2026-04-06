@@ -2,6 +2,7 @@
 // The Microsoft Corporation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 using Microsoft.CommandPalette.Extensions;
@@ -119,14 +120,21 @@ internal sealed partial class EditTaskFormContent : FormContent
 
     private async System.Threading.Tasks.Task UpdateAsync(UpdateTaskRequest request)
     {
-        var result = await _apiClient.UpdateTaskAsync(_task.Id, request);
-        if (result != null)
+        try
         {
-            Debug.WriteLine($"[EditTaskPage] Successfully updated task: {result.Title}");
+            var result = await _apiClient.UpdateTaskAsync(_task.Id, request);
+            if (result != null)
+            {
+                Debug.WriteLine($"[EditTaskPage] Successfully updated task: {result.Title}");
+            }
+            else
+            {
+                Debug.WriteLine($"[EditTaskPage] Failed to update task: {_task.Id}");
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Debug.WriteLine($"[EditTaskPage] Failed to update task: {_task.Id}");
+            Debug.WriteLine($"[EditTaskPage] Exception updating task: {ex.GetType().Name}: {ex.Message}");
         }
     }
 

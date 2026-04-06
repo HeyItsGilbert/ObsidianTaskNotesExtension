@@ -2,6 +2,7 @@
 // The Microsoft Corporation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Reflection;
 using System.Text.Json.Nodes;
 using Microsoft.CommandPalette.Extensions;
 using Microsoft.CommandPalette.Extensions.Toolkit;
@@ -128,12 +129,27 @@ internal sealed partial class SettingsPage : ListPage
     private readonly SettingsManager _settingsManager;
     private readonly TaskNotesApiClient _apiClient;
 
+    private static string GetVersionString()
+    {
+        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        var versionStr = version?.ToString(3) ?? "unknown";
+#if DEBUG
+        return $"{versionStr} (Debug)";
+#else
+        return versionStr;
+#endif
+    }
+
     public SettingsPage(SettingsManager settingsManager, TaskNotesApiClient apiClient)
     {
         _settingsManager = settingsManager;
         _apiClient = apiClient;
 
+#if DEBUG
+        Icon = new IconInfo("\uEBE8"); // Developer/bug icon
+#else
         Icon = new IconInfo("\uE713"); // Settings icon
+#endif
         Title = "Settings";
         Name = "Settings";
     }
@@ -156,6 +172,12 @@ internal sealed partial class SettingsPage : ListPage
                 Title = "Test Connection",
                 Subtitle = "Verify TaskNotes API is reachable",
                 Icon = new IconInfo("\uE703")
+            },
+            new ListItem(new NoOpCommand())
+            {
+                Title = $"Version: {GetVersionString()}",
+                Subtitle = "Obsidian TaskNotes Extension",
+                Icon = new IconInfo("\uE946") // Info icon
             }
         ];
     }

@@ -2,6 +2,7 @@
 // The Microsoft Corporation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 using Microsoft.CommandPalette.Extensions;
@@ -120,13 +121,20 @@ internal sealed partial class CreateTaskFormContent : FormContent
         };
 
         _ = CreateAsync(request);
-        return CommandResult.GoBack();
+        return CommandResult.ShowToast("Task created!");
     }
 
     private async System.Threading.Tasks.Task CreateAsync(CreateTaskRequest request)
     {
-        var result = await _apiClient.CreateTaskAsync(request);
-        Debug.WriteLine($"[CreateTaskPage] Created task: {result?.Title ?? "(failed)"}");
+        try
+        {
+            var result = await _apiClient.CreateTaskAsync(request);
+            Debug.WriteLine($"[CreateTaskPage] Created task: {result?.Title ?? "(failed)"}");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CreateTaskPage] Exception creating task: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     private static string? NullIfEmpty(string? value) =>
