@@ -273,10 +273,12 @@ Task VerifyMsix -Description "Verify that the MSIX bundle was created successful
   Write-Host "MSIX verification completed!" -ForegroundColor Green
 }
 
-# Self-sign MSIX bundle for local testing/sideloading (NOT needed for Store submission)
-Task SelfSignMsix -Depends BundleMsix -Description "Self-sign MSIX bundle for local dev/testing (not for Store)" {
-  Write-Host "Self-signing MSIX packages for local testing..." -ForegroundColor Green
-  Write-Host "NOTE: This is for local sideloading only. The Microsoft Store signs packages automatically." -ForegroundColor Yellow
+# Self-sign MSIX bundle for sideloading distribution
+# Supports two modes:
+#   1. CI mode: set $env:SIGNING_PFX_PATH and $env:SIGNING_PFX_PASSWORD to use an existing cert
+#   2. Local mode: generates a self-signed certificate automatically
+Task SelfSignMsix -Depends BundleMsix -Description "Self-sign MSIX bundle for sideloading distribution" {
+  Write-Host "Self-signing MSIX packages..." -ForegroundColor Green
 
   # Read publisher CN from appxmanifest
   $manifestPath = Join-Path $projectPath "Package.appxmanifest"
@@ -284,46 +286,62 @@ Task SelfSignMsix -Depends BundleMsix -Description "Self-sign MSIX bundle for lo
   $publisherCN = $manifest.Package.Identity.Publisher
   Write-Host "Publisher: $publisherCN" -ForegroundColor Yellow
 
-  # Certificate parameters
-  $certName = "ObsidianTaskNotes Dev Certificate"
-  $certStorePath = "Cert:\LocalMachine\My"
-  $pfxPath = Join-Path $PSScriptRoot "bin\Release\dev-signing.pfx"
-  $pfxPassword = ConvertTo-SecureString -String "DevTestOnly" -Force -AsPlainText
+  # Output paths
+  $bundleOutputDir = Join-Path $PSScriptRoot "bin\Release"
+  $cerPath = Join-Path $bundleOutputDir "ObsidianTaskNotesExtension.cer"
 
-  # Check for existing dev cert
-  $existingCert = Get-ChildItem $certStorePath |
-    Where-Object { $_.Subject -eq $publisherCN -and $_.FriendlyName -eq $certName } |
-    Sort-Object NotAfter -Descending |
-    Select-Object -First 1
+  # Determine certificate source
+  if ($env:SIGNING_PFX_PATH -and (Test-Path $env:SIGNING_PFX_PATH)) {
+    # CI mode: use pre-existing PFX from GitHub Secrets
+    Write-Host "Using existing certificate from SIGNING_PFX_PATH" -ForegroundColor Cyan
+    $pfxPath = $env:SIGNING_PFX_PATH
+    $pfxPasswordPlain = $env:SIGNING_PFX_PASSWORD
+    $pfxPassword = ConvertTo-SecureString -String $pfxPasswordPlain -Force -AsPlainText
+    $cleanupPfx = $false
 
-  if ($existingCert -and $existingCert.NotAfter -gt (Get-Date).AddDays(30)) {
-    Write-Host "Using existing dev certificate (expires: $($existingCert.NotAfter))" -ForegroundColor Cyan
-    $cert = $existingCert
+    # Import to extract public cert
+    $cert = Import-PfxCertificate -FilePath $pfxPath -Password $pfxPassword -CertStoreLocation "Cert:\LocalMachine\My"
   } else {
-    Write-Host "Creating new self-signed certificate..." -ForegroundColor Cyan
-    $newSelfSignedCertificateSplat = @{
-      Type = 'Custom'
-      Subject = $publisherCN
-      FriendlyName = $certName
-      KeyUsage = 'DigitalSignature'
-      TextExtension = @("2.5.29.37={text}1.3.6.1.5.5.7.3.3")
-      CertStoreLocation = $certStorePath
-      NotAfter = (Get-Date).AddYears(1)
+    # Local mode: generate self-signed certificate
+    Write-Host "Generating self-signed certificate..." -ForegroundColor Cyan
+    $certName = "ObsidianTaskNotes Signing Certificate"
+    $certStorePath = "Cert:\LocalMachine\My"
+    $pfxPath = Join-Path $bundleOutputDir "signing.pfx"
+    $pfxPasswordPlain = "DevTestOnly"
+    $pfxPassword = ConvertTo-SecureString -String $pfxPasswordPlain -Force -AsPlainText
+    $cleanupPfx = $true
+
+    # Check for existing cert
+    $existingCert = Get-ChildItem $certStorePath |
+      Where-Object { $_.Subject -eq $publisherCN -and $_.FriendlyName -eq $certName } |
+      Sort-Object NotAfter -Descending |
+      Select-Object -First 1
+
+    if ($existingCert -and $existingCert.NotAfter -gt (Get-Date).AddDays(30)) {
+      Write-Host "Using existing certificate (expires: $($existingCert.NotAfter))" -ForegroundColor Cyan
+      $cert = $existingCert
+    } else {
+      $newSelfSignedCertificateSplat = @{
+        Type = 'Custom'
+        Subject = $publisherCN
+        FriendlyName = $certName
+        KeyUsage = 'DigitalSignature'
+        TextExtension = @("2.5.29.37={text}1.3.6.1.5.5.7.3.3")
+        CertStoreLocation = $certStorePath
+        NotAfter = (Get-Date).AddYears(3)
+      }
+      $cert = New-SelfSignedCertificate @newSelfSignedCertificateSplat
+      Write-Host "Certificate created, thumbprint: $($cert.Thumbprint)" -ForegroundColor Green
     }
 
-    $cert = New-SelfSignedCertificate @newSelfSignedCertificateSplat
-    Write-Host "Certificate created, thumbprint: $($cert.Thumbprint)" -ForegroundColor Green
+    # Export PFX for SignTool
+    Export-PfxCertificate -Cert "Cert:\LocalMachine\My\$($cert.Thumbprint)" -FilePath $pfxPath -Password $pfxPassword | Out-Null
+    Assert (Test-Path $pfxPath) "Failed to export PFX certificate"
   }
 
-  # Export PFX for SignTool
-  $exportPfxCertificateSplat = @{
-    Cert = "$certStorePath\$($cert.Thumbprint)"
-    FilePath = $pfxPath
-    Password = $pfxPassword
-  }
-  Export-PfxCertificate @exportPfxCertificateSplat
-
-  Assert (Test-Path $pfxPath) "Failed to export PFX certificate"
+  # Export public certificate (.cer) for distribution
+  Export-Certificate -Cert "Cert:\LocalMachine\My\$($cert.Thumbprint)" -FilePath $cerPath | Out-Null
+  Write-Host "Public certificate exported: $cerPath" -ForegroundColor Green
 
   # Find SignTool.exe
   $signToolPath = $null
@@ -339,16 +357,10 @@ Task SelfSignMsix -Depends BundleMsix -Description "Self-sign MSIX bundle for lo
         Select-Object -First 1
       if ($latestSdk) {
         $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
-          "AMD64" { "x64" }
-          "x86" { "x86" }
-          "ARM64" { "arm64" }
-          default { "x64" }
+          "AMD64" { "x64" }; "x86" { "x86" }; "ARM64" { "arm64" }; default { "x64" }
         }
         $candidate = Join-Path $latestSdk.FullName "$arch\signtool.exe"
-        if (Test-Path $candidate) {
-          $signToolPath = $candidate
-          break
-        }
+        if (Test-Path $candidate) { $signToolPath = $candidate; break }
       }
     }
   }
@@ -361,7 +373,7 @@ Task SelfSignMsix -Depends BundleMsix -Description "Self-sign MSIX bundle for lo
   $msixFiles = Get-ChildItem "$appPackagesDir" -Recurse -Filter "*.msix"
   foreach ($msix in $msixFiles) {
     Write-Host "Signing: $($msix.Name)" -ForegroundColor Cyan
-    & $signToolPath sign /fd SHA256 /a /f $pfxPath /p "DevTestOnly" $msix.FullName
+    & $signToolPath sign /fd SHA256 /a /f $pfxPath /p $pfxPasswordPlain $msix.FullName
     if ($LASTEXITCODE -ne 0) {
       throw "Failed to sign $($msix.Name)"
     }
@@ -370,12 +382,11 @@ Task SelfSignMsix -Depends BundleMsix -Description "Self-sign MSIX bundle for lo
   # Re-create the bundle from signed packages (bundle must be rebuilt after signing contents)
   Write-Host
   Write-Host "Re-bundling with signed packages..." -ForegroundColor Cyan
-  $bundleOutputDir = Join-Path $PSScriptRoot "bin\Release"
   $bundleFileName = "${script:ExtensionName}_${script:MsixVersion}_Bundle.msixbundle"
   $bundlePath = Join-Path $bundleOutputDir $bundleFileName
   $mappingFile = Join-Path $bundleOutputDir "bundle_mapping.txt"
 
-  # Find makeappx.exe (same logic as BundleMsix)
+  # Find makeappx.exe
   $makeappxPath = $null
   foreach ($sdkBase in $sdkPaths) {
     if (Test-Path $sdkBase) {
@@ -405,40 +416,38 @@ Task SelfSignMsix -Depends BundleMsix -Description "Self-sign MSIX bundle for lo
 
   # Sign the bundle itself
   Write-Host "Signing bundle: $bundleFileName" -ForegroundColor Cyan
-  & $signToolPath sign /fd SHA256 /a /f $pfxPath /p "DevTestOnly" $bundlePath
+  & $signToolPath sign /fd SHA256 /a /f $pfxPath /p $pfxPasswordPlain $bundlePath
   if ($LASTEXITCODE -ne 0) {
     throw "Failed to sign bundle"
   }
 
-  # Install cert to Trusted People store for sideloading
-  $trustedPeopleStore = "Cert:\LocalMachine\TrustedPeople"
-  $alreadyInstalled = Get-ChildItem $trustedPeopleStore -ErrorAction SilentlyContinue |
-    Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
+  # Local mode: install cert to Trusted People store for sideloading
+  if ($cleanupPfx) {
+    $trustedPeopleStore = "Cert:\LocalMachine\TrustedPeople"
+    $alreadyInstalled = Get-ChildItem $trustedPeopleStore -ErrorAction SilentlyContinue |
+      Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
 
-  if (-not $alreadyInstalled) {
-    Write-Host "Installing certificate to Trusted People store (may require admin)..." -ForegroundColor Yellow
-    try {
-      $importPfxCertificateSplat = @{
-        FilePath = $pfxPath
-        Password = $pfxPassword
-        CertStoreLocation = $trustedPeopleStore
+    if (-not $alreadyInstalled) {
+      Write-Host "Installing certificate to Trusted People store (may require admin)..." -ForegroundColor Yellow
+      try {
+        Import-PfxCertificate -FilePath $pfxPath -Password $pfxPassword -CertStoreLocation $trustedPeopleStore | Out-Null
+        Write-Host "Certificate installed to Trusted People store." -ForegroundColor Green
+      } catch {
+        Write-Warning "Could not install cert to Trusted People store. Run as Administrator or manually import:"
+        Write-Warning "  certutil -addstore TrustedPeople '$cerPath'"
       }
-      Import-PfxCertificate @importPfxCertificateSplat | Out-Null
-      Write-Host "Certificate installed to Trusted People store." -ForegroundColor Green
-    } catch {
-      Write-Warning "Could not install cert to Trusted People store. Run as Administrator or manually import:"
-      Write-Warning "  certutil -addstore TrustedPeople '$pfxPath'"
+    } else {
+      Write-Host "Certificate already in Trusted People store." -ForegroundColor Cyan
     }
-  } else {
-    Write-Host "Certificate already in Trusted People store." -ForegroundColor Cyan
-  }
 
-  # Clean up PFX
-  Remove-Item $pfxPath -Force -ErrorAction SilentlyContinue
+    # Clean up PFX (keep .cer for distribution)
+    Remove-Item $pfxPath -Force -ErrorAction SilentlyContinue
+  }
 
   $sizeMB = [math]::Round((Get-Item $bundlePath).Length / 1MB, 2)
   Write-Host
-  Write-Host "Signed MSIX bundle ready for sideloading: $bundlePath ($sizeMB MB)" -ForegroundColor Green
+  Write-Host "Signed MSIX bundle: $bundlePath ($sizeMB MB)" -ForegroundColor Green
+  Write-Host "Public certificate: $cerPath" -ForegroundColor Green
   Write-Host "Install with: Add-AppxPackage -Path '$bundlePath'" -ForegroundColor Cyan
 }
 
@@ -693,8 +702,8 @@ Task VerifyInstallers -Description "Verify that EXE installers were created succ
   Write-Host "Installer verification completed!" -ForegroundColor Green
 }
 
-# CI/CD task - full pipeline with MSIX bundle and EXE installers
-Task CICD -Depends Clean, Restore, BuildDebug, Analyze, Test, BundleMsix, VerifyMsix, Publish, BuildExeInstaller, VerifyInstallers -Description "Full CI/CD pipeline: MSIX bundle + EXE installers" {
+# CI/CD task - full pipeline with signed MSIX bundle
+Task CICD -Depends Clean, Restore, BuildDebug, Analyze, Test, SelfSignMsix, VerifyMsix -Description "Full CI/CD pipeline: signed MSIX bundle" {
   Write-Host
   Write-Host "========================================" -ForegroundColor Cyan
   Write-Host "CI/CD Pipeline completed successfully!" -ForegroundColor Green
@@ -703,9 +712,13 @@ Task CICD -Depends Clean, Restore, BuildDebug, Analyze, Test, BundleMsix, Verify
   $bundleOutputDir = Join-Path $PSScriptRoot "bin\Release"
   $bundle = Get-ChildItem "$bundleOutputDir\*.msixbundle" -ErrorAction SilentlyContinue |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  $cer = Get-ChildItem "$bundleOutputDir\*.cer" -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1
   if ($bundle) {
     Write-Host
-    Write-Host "MSIX bundle (for Store): $($bundle.FullName)" -ForegroundColor Yellow
+    Write-Host "Signed MSIX bundle: $($bundle.FullName)" -ForegroundColor Yellow
   }
-  Write-Host "EXE installers (for GitHub/WinGet): $installerOutputDir" -ForegroundColor Yellow
+  if ($cer) {
+    Write-Host "Public certificate:  $($cer.FullName)" -ForegroundColor Yellow
+  }
 }

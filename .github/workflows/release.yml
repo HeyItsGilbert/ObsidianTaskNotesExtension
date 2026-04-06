@@ -1,7 +1,15 @@
 # Obsidian Task Notes Extension - Build and Release Workflow
 #
-# This workflow builds EXE installers for x64 and ARM64 and creates a GitHub Release.
+# This workflow builds a self-signed MSIX bundle and creates a GitHub Release.
 # It uses the psake build system via build.ps1.
+#
+# Required secrets:
+#   SIGNING_PFX_BASE64 - Base64-encoded PFX certificate for signing
+#   SIGNING_PFX_PASSWORD - Password for the PFX certificate
+#
+# If secrets are not set, a temporary self-signed certificate is generated.
+# For consistent sideloading, store a persistent cert as a secret so users
+# only need to trust the certificate once.
 
 name: Build and Release
 
@@ -54,7 +62,7 @@ jobs:
               # Convert to semver format
               $version = $manifest.Package.Identity.Version
             }
-            if (-not $version) { 
+            if (-not $version) {
               $version = "0.0.1"
               Write-Host "No version found, using default"
             }
@@ -86,33 +94,33 @@ jobs:
 
           # Validate csproj version
           if ($csprojVersion -ne "$version.0") {
-            $errors += "❌ csproj version mismatch: expected '$version.0', got '$csprojVersion'"
+            $errors += "csproj version mismatch: expected '$version.0', got '$csprojVersion'"
           } else {
-            Write-Host "✅ csproj version matches: $csprojVersion"
+            Write-Host "csproj version matches: $csprojVersion"
           }
 
           # Validate manifest version
           if ($manifestVersion -ne "$version.0") {
-            $errors += "❌ manifest version mismatch: expected '$version.0', got '$manifestVersion'"
+            $errors += "manifest version mismatch: expected '$version.0', got '$manifestVersion'"
           } else {
-            Write-Host "✅ manifest version matches: $manifestVersion"
+            Write-Host "manifest version matches: $manifestVersion"
           }
 
           # Validate changelog entry
           if (-not $changelogHasVersion) {
-            $errors += "❌ CHANGELOG.md missing entry for version [$version]"
+            $errors += "CHANGELOG.md missing entry for version [$version]"
           } else {
-            Write-Host "✅ CHANGELOG.md contains version [$version]"
+            Write-Host "CHANGELOG.md contains version [$version]"
           }
 
           if ($errors.Count -gt 0) {
             foreach ($err in $errors) {
-              Write-Host $err -ForegroundColor Red
+              Write-Host "ERROR: $err" -ForegroundColor Red
             }
             throw "Version validation failed"
           }
 
-          Write-Host "✅ All versions are consistent!" -ForegroundColor Green
+          Write-Host "All versions are consistent!" -ForegroundColor Green
         shell: pwsh
 
       - name: Get Changelog Entry
@@ -123,31 +131,40 @@ jobs:
           version: ${{ steps.version.outputs.VERSION }}
           path: ./CHANGELOG.md
 
+      - name: Prepare signing certificate
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "signing.pfx"
+          if ("${{ secrets.SIGNING_PFX_BASE64 }}" -ne "") {
+            Write-Host "Using certificate from repository secrets"
+            $pfxBytes = [Convert]::FromBase64String("${{ secrets.SIGNING_PFX_BASE64 }}")
+            [IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
+          } else {
+            Write-Host "No SIGNING_PFX_BASE64 secret found - a temporary certificate will be generated"
+          }
+          echo "SIGNING_PFX_PATH=$pfxPath" >> $env:GITHUB_ENV
+        shell: pwsh
+
       - name: Bootstrap and build with psake
         run: |
           Write-Host "Bootstrapping dependencies..." -ForegroundColor Green
           .\build.ps1 -Bootstrap -Task CICD
         shell: pwsh
-
-      - name: Upload x64 installer artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.EXTENSION_NAME }}-x64-installer
-          path: ${{ env.EXTENSION_NAME }}/bin/Release/installer/*-x64.exe
-          if-no-files-found: warn
-
-      - name: Upload ARM64 installer artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.EXTENSION_NAME }}-arm64-installer
-          path: ${{ env.EXTENSION_NAME }}/bin/Release/installer/*-arm64.exe
-          if-no-files-found: warn
+        env:
+          SIGNING_PFX_PATH: ${{ env.SIGNING_PFX_PATH }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.SIGNING_PFX_PASSWORD }}
 
       - name: Upload MSIX bundle artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.EXTENSION_NAME }}-msixbundle
           path: bin/Release/*.msixbundle
+          if-no-files-found: warn
+
+      - name: Upload signing certificate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.EXTENSION_NAME }}-certificate
+          path: bin/Release/*.cer
           if-no-files-found: warn
 
       - name: Create GitHub Release
@@ -157,7 +174,7 @@ jobs:
           tag_name: v${{ steps.version.outputs.VERSION }}
           name: "${{ env.DISPLAY_NAME }} v${{ steps.version.outputs.VERSION }}"
           body: |
-            ## 🎯 ${{ env.DISPLAY_NAME }} v${{ steps.version.outputs.VERSION }}
+            ## ${{ env.DISPLAY_NAME }} v${{ steps.version.outputs.VERSION }}
 
             **Released:** ${{ steps.changelog_reader.outputs.date }}
 
@@ -166,43 +183,60 @@ jobs:
 
             ---
 
-            ### 📦 Installation
+            ### Installation (Self-Signed MSIX)
 
-            Download the installer for your system architecture:
+            > **Note:** This release is distributed as a self-signed MSIX package.
+            > You must install the signing certificate before installing the extension.
+            > The Microsoft Store version is also available but may lag behind.
 
-            - **x64 (Intel/AMD)**: `${{ env.EXTENSION_NAME }}-Setup-${{ steps.version.outputs.VERSION }}-x64.exe`
-            - **ARM64 (Windows on ARM)**: `${{ env.EXTENSION_NAME }}-Setup-${{ steps.version.outputs.VERSION }}-arm64.exe`
+            #### First-time setup (install the certificate)
 
-            #### Steps:
-            1. Ensure [PowerToys](https://github.com/microsoft/PowerToys) is installed
-            2. Download the appropriate installer from the Assets section below
-            3. Run the installer
-            4. The extension will be registered and available in Command Palette
+            1. Download `ObsidianTaskNotesExtension.cer` from the Assets below
+            2. Double-click the `.cer` file and choose **Install Certificate**
+            3. Select **Local Machine** > **Place all certificates in the following store**
+            4. Browse and select **Trusted People** > OK > Finish
 
-            ### 🔗 More Information
+            Or via PowerShell (admin):
+            ```powershell
+            certutil -addstore TrustedPeople ObsidianTaskNotesExtension.cer
+            ```
 
-            - [Repository](https://github.com/HeyItsGilbert/ObsidianTaskNotesExtension)
-            - [TaskNotes API](https://tasknotes.dev/HTTP_API/)
+            #### Install the extension
+
+            1. Ensure [PowerToys](https://github.com/microsoft/PowerToys) is installed with Command Palette enabled
+            2. Download the `.msixbundle` from the Assets below
+            3. Double-click to install, or run:
+               ```powershell
+               Add-AppxPackage -Path ObsidianTaskNotesExtension_${{ steps.version.outputs.VERSION }}.0_Bundle.msixbundle
+               ```
+            4. Open Command Palette and type "Obsidian" to find your commands
 
             ### Requirements
             - Windows 10 version 19041 or later
             - [PowerToys](https://github.com/microsoft/PowerToys) with Command Palette enabled
-            - TaskNotes plugin installed in Obsidian
+            - [TaskNotes](https://tasknotes.dev/) plugin installed in Obsidian
           files: |
-            ${{ env.EXTENSION_NAME }}/bin/Release/installer/*.exe
             bin/Release/*.msixbundle
+            bin/Release/*.cer
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Cleanup signing material
+        if: always()
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "signing.pfx"
+          if (Test-Path $pfxPath) { Remove-Item $pfxPath -Force }
+        shell: pwsh
+
       - name: Build summary
         run: |
-          Write-Host "🎉 Build completed!" -ForegroundColor Green
+          Write-Host "Build completed!" -ForegroundColor Green
           Write-Host "Version: ${{ steps.version.outputs.VERSION }}" -ForegroundColor Yellow
           if ("${{ github.event.inputs.create_release }}" -eq "true") {
-            Write-Host "📦 GitHub Release created" -ForegroundColor Green
+            Write-Host "GitHub Release created" -ForegroundColor Green
           } else {
-            Write-Host "📁 Installers uploaded as artifacts (no release created)" -ForegroundColor Yellow
+            Write-Host "Artifacts uploaded (no release created)" -ForegroundColor Yellow
           }
         shell: pwsh
