@@ -18,7 +18,11 @@ public partial class ObsidianTaskNotesExtensionCommandsProvider : CommandProvide
     public ObsidianTaskNotesExtensionCommandsProvider()
     {
         DisplayName = "Task Notes Command Palette for Obsidian";
+#if DEBUG
+        Icon = new IconInfo("\uEBE8"); // Developer/bug icon for debug builds
+#else
         Icon = IconHelpers.FromRelativePath("Assets\\StoreLogo.png");
+#endif
 
         // Initialize shared services
         _settingsManager = new SettingsManager();
